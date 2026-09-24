@@ -9,8 +9,7 @@ public final class PortolanProvisionResult {
     private final int skipped;
     private final List<String> messages;
 
-    public PortolanProvisionResult(
-            String workspace, int created, int skipped, List<String> messages) {
+    public PortolanProvisionResult(String workspace, int created, int skipped, List<String> messages) {
         this.workspace = workspace;
         this.created = created;
         this.skipped = skipped;

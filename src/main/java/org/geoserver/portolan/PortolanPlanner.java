@@ -44,17 +44,9 @@ public final class PortolanPlanner {
             }
             String storeName = geoserverName(collection.id());
             PortolanPlanAction action = action(workspace, storeName, format);
-            String reason =
-                    action == PortolanPlanAction.UNSUPPORTED ? "handler not installed" : null;
-            entries.add(
-                    new PortolanPublicationEntry(
-                            collection.id(),
-                            storeName,
-                            storeName,
-                            format,
-                            asset.href(),
-                            action,
-                            reason));
+            String reason = action == PortolanPlanAction.UNSUPPORTED ? "handler not installed" : null;
+            entries.add(new PortolanPublicationEntry(
+                    collection.id(), storeName, storeName, format, asset.href(), action, reason));
         }
         return new PortolanPublicationPlan(
                 catalogId, portolanCatalog.href().toString(), workspace, List.copyOf(entries));
@@ -63,17 +55,10 @@ public final class PortolanPlanner {
     private PortolanPublicationEntry skip(String collectionId, String reason) {
         String name = geoserverName(collectionId);
         return new PortolanPublicationEntry(
-                collectionId,
-                name,
-                name,
-                PortolanResourceFormat.UNKNOWN,
-                null,
-                PortolanPlanAction.SKIP,
-                reason);
+                collectionId, name, name, PortolanResourceFormat.UNKNOWN, null, PortolanPlanAction.SKIP, reason);
     }
 
-    private PortolanPlanAction action(
-            String workspace, String storeName, PortolanResourceFormat format) {
+    private PortolanPlanAction action(String workspace, String storeName, PortolanResourceFormat format) {
         if (format == PortolanResourceFormat.PMTILES) {
             return PortolanPlanAction.UNSUPPORTED;
         }
@@ -105,8 +90,7 @@ public final class PortolanPlanner {
     }
 
     public static String geoserverName(String value) {
-        String name =
-                value == null ? "" : value.replace("/", "__").replaceAll("[^A-Za-z0-9_.-]+", "_");
+        String name = value == null ? "" : value.replace("/", "__").replaceAll("[^A-Za-z0-9_.-]+", "_");
         name = name.replaceAll("^[._-]+|[._-]+$", "");
         return name.isBlank() ? "portolan" : name;
     }

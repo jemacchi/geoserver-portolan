@@ -31,43 +31,30 @@ public class PortolanPage extends GeoServerBasePage {
         form.add(new TextField<>("catalogId", catalogId));
         form.add(new TextField<>("workspace", workspace));
         form.add(new TextArea<>("output", output));
-        form.add(
-                new Label(
-                        "hint",
-                        "Paste a catalog id from the registry list, then plan or provision."));
-        form.add(
-                new Button("load") {
-                    @Override
-                    public void onSubmit() {
-                        List<RegistryCatalogEntry> entries =
-                                facade().listCatalogs(registryUrl.getObject());
-                        output.setObject(renderRegistry(entries));
-                    }
-                });
-        form.add(
-                new Button("plan") {
-                    @Override
-                    public void onSubmit() {
-                        PortolanPublicationPlan plan =
-                                facade().planRegistryCatalog(
-                                                registryUrl.getObject(),
-                                                catalogId.getObject(),
-                                                workspace.getObject());
-                        output.setObject(renderPlan(plan));
-                    }
-                });
-        form.add(
-                new Button("provision") {
-                    @Override
-                    public void onSubmit() {
-                        PortolanProvisionResult result =
-                                facade().provisionRegistryCatalog(
-                                                registryUrl.getObject(),
-                                                catalogId.getObject(),
-                                                workspace.getObject());
-                        output.setObject(renderResult(result));
-                    }
-                });
+        form.add(new Label("hint", "Paste a catalog id from the registry list, then plan or provision."));
+        form.add(new Button("load") {
+            @Override
+            public void onSubmit() {
+                List<RegistryCatalogEntry> entries = facade().listCatalogs(registryUrl.getObject());
+                output.setObject(renderRegistry(entries));
+            }
+        });
+        form.add(new Button("plan") {
+            @Override
+            public void onSubmit() {
+                PortolanPublicationPlan plan = facade().planRegistryCatalog(
+                                registryUrl.getObject(), catalogId.getObject(), workspace.getObject());
+                output.setObject(renderPlan(plan));
+            }
+        });
+        form.add(new Button("provision") {
+            @Override
+            public void onSubmit() {
+                PortolanProvisionResult result = facade().provisionRegistryCatalog(
+                                registryUrl.getObject(), catalogId.getObject(), workspace.getObject());
+                output.setObject(renderResult(result));
+            }
+        });
     }
 
     private PortolanRegistryFacade facade() {
@@ -79,15 +66,7 @@ public class PortolanPage extends GeoServerBasePage {
             return "No registry catalogs found.";
         }
         return entries.stream()
-                .map(
-                        entry ->
-                                entry.id()
-                                        + " | "
-                                        + entry.status()
-                                        + " | "
-                                        + entry.title()
-                                        + "\n"
-                                        + entry.url())
+                .map(entry -> entry.id() + " | " + entry.status() + " | " + entry.title() + "\n" + entry.url())
                 .collect(Collectors.joining("\n\n"));
     }
 

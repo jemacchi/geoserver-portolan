@@ -19,12 +19,10 @@ public final class PortolanRegistryFacade {
     }
 
     public List<RegistryCatalogEntry> listCatalogs(String registryUrl) {
-        return PortolanRegistry.loadRegistryEntries(
-                registryUrlOrDefault(registryUrl), null, null, false, null);
+        return PortolanRegistry.loadRegistryEntries(registryUrlOrDefault(registryUrl), null, null, false, null);
     }
 
-    public PortolanPublicationPlan planRegistryCatalog(
-            String registryUrl, String catalogId, String workspaceName) {
+    public PortolanPublicationPlan planRegistryCatalog(String registryUrl, String catalogId, String workspaceName) {
         Path localCatalog = download(registryUrl, catalogId);
         return planner.plan(localCatalog, workspaceName);
     }
@@ -37,9 +35,8 @@ public final class PortolanRegistryFacade {
 
     private Path download(String registryUrl, String catalogId) {
         try {
-            List<RegistryCatalogEntry> entries =
-                    PortolanRegistry.loadRegistryEntries(
-                            registryUrlOrDefault(registryUrl), null, Set.of(catalogId), false, 1);
+            List<RegistryCatalogEntry> entries = PortolanRegistry.loadRegistryEntries(
+                    registryUrlOrDefault(registryUrl), null, Set.of(catalogId), false, 1);
             if (entries.isEmpty()) {
                 throw new IllegalArgumentException("Catalog not found in registry: " + catalogId);
             }
@@ -51,8 +48,6 @@ public final class PortolanRegistryFacade {
     }
 
     private String registryUrlOrDefault(String registryUrl) {
-        return registryUrl == null || registryUrl.isBlank()
-                ? PortolanRegistry.DEFAULT_REGISTRY_URL
-                : registryUrl;
+        return registryUrl == null || registryUrl.isBlank() ? PortolanRegistry.DEFAULT_REGISTRY_URL : registryUrl;
     }
 }

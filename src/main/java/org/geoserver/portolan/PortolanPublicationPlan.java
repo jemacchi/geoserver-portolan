@@ -10,10 +10,7 @@ public final class PortolanPublicationPlan {
     private final List<PortolanPublicationEntry> entries;
 
     public PortolanPublicationPlan(
-            String catalogId,
-            String catalogHref,
-            String workspace,
-            List<PortolanPublicationEntry> entries) {
+            String catalogId, String catalogHref, String workspace, List<PortolanPublicationEntry> entries) {
         this.catalogId = catalogId;
         this.catalogHref = catalogHref;
         this.workspace = workspace;

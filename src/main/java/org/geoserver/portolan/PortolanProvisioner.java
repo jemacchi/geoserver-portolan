@@ -37,22 +37,13 @@ public final class PortolanProvisioner {
             StoreInfo store = createStore(plan, entry, workspace);
             if (store == null) {
                 skipped++;
-                messages.add(
-                        entry.collectionId()
-                                + ": no GeoServer store handler for "
-                                + entry.format());
+                messages.add(entry.collectionId() + ": no GeoServer store handler for " + entry.format());
                 continue;
             }
             created++;
-            messages.add(
-                    entry.collectionId()
-                            + ": created "
-                            + store.getType()
-                            + " store "
-                            + store.getName());
+            messages.add(entry.collectionId() + ": created " + store.getType() + " store " + store.getName());
         }
-        return new PortolanProvisionResult(
-                plan.workspace(), created, skipped, List.copyOf(messages));
+        return new PortolanProvisionResult(plan.workspace(), created, skipped, List.copyOf(messages));
     }
 
     private StoreInfo createStore(
@@ -100,8 +91,7 @@ public final class PortolanProvisioner {
         return href.startsWith("cog://") ? href : "cog://" + href;
     }
 
-    private void tagStore(
-            PortolanPublicationPlan plan, PortolanPublicationEntry entry, StoreInfo store) {
+    private void tagStore(PortolanPublicationPlan plan, PortolanPublicationEntry entry, StoreInfo store) {
         store.getMetadata().put(METADATA_MANAGED, Boolean.TRUE);
         store.getMetadata().put(METADATA_CATALOG, plan.catalogHref());
         store.getMetadata().put(METADATA_COLLECTION, entry.collectionId());
