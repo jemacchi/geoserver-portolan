@@ -57,6 +57,9 @@ public final class PortolanProvisioner {
         if (entry.format() == PortolanResourceFormat.COG) {
             return createCogStore(plan, entry, workspace);
         }
+        if (entry.format() == PortolanResourceFormat.PMTILES) {
+            return createPmtilesStore(plan, entry, workspace);
+        }
         return null;
     }
 
@@ -65,9 +68,25 @@ public final class PortolanProvisioner {
         CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.setWorkspace(workspace);
         DataStoreInfo store = builder.buildDataStore(entry.storeName());
-        store.setType("GeoParquet");
+        store.setType(PortolanStoreHandlers.GEOPARQUET_TYPE);
         store.setDescription("Portolan collection " + entry.collectionId());
-        store.getConnectionParameters().put("url", entry.href().toString());
+        store.getConnectionParameters().put("dbtype", "geoparquet");
+        store.getConnectionParameters().put("uri", entry.href().toString());
+        store.getConnectionParameters().put("namespace", namespace(workspace));
+        tagStore(plan, entry, store);
+        catalog.add(store);
+        return store;
+    }
+
+    private DataStoreInfo createPmtilesStore(
+            PortolanPublicationPlan plan, PortolanPublicationEntry entry, WorkspaceInfo workspace) {
+        CatalogBuilder builder = new CatalogBuilder(catalog);
+        builder.setWorkspace(workspace);
+        DataStoreInfo store = builder.buildDataStore(entry.storeName());
+        store.setType(PortolanStoreHandlers.PMTILES_TYPE);
+        store.setDescription("Portolan collection " + entry.collectionId());
+        store.getConnectionParameters().put("pmtiles", entry.href().toString());
+        store.getConnectionParameters().put("namespace", namespace(workspace));
         tagStore(plan, entry, store);
         catalog.add(store);
         return store;
@@ -78,7 +97,7 @@ public final class PortolanProvisioner {
         CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.setWorkspace(workspace);
         CoverageStoreInfo store = builder.buildCoverageStore(entry.storeName());
-        store.setType("GeoTIFF");
+        store.setType(PortolanStoreHandlers.GEOTIFF_TYPE);
         store.setDescription("Portolan collection " + entry.collectionId());
         store.setURL(cogUrl(entry));
         tagStore(plan, entry, store);
@@ -115,5 +134,10 @@ public final class PortolanProvisioner {
             catalog.add(namespace);
         }
         return workspace;
+    }
+
+    private String namespace(WorkspaceInfo workspace) {
+        NamespaceInfo namespace = catalog.getNamespaceByPrefix(workspace.getName());
+        return namespace == null ? workspace.getName() : namespace.getURI();
     }
 }

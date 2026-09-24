@@ -12,12 +12,13 @@ import org.geoserver.portolan.PortolanProvisionResult;
 import org.geoserver.portolan.PortolanPublicationEntry;
 import org.geoserver.portolan.PortolanPublicationPlan;
 import org.geoserver.portolan.PortolanRegistryFacade;
-import org.geoserver.web.GeoServerBasePage;
+import org.geoserver.web.ComponentAuthorizer;
+import org.geoserver.web.GeoServerSecuredPage;
 import org.portolan.PortolanRegistry;
 import org.portolan.RegistryCatalogEntry;
 
 /** Portolan registry page for the GeoServer Web UI. */
-public class PortolanPage extends GeoServerBasePage {
+public class PortolanPage extends GeoServerSecuredPage {
     private final Model<String> registryUrl = Model.of(PortolanRegistry.DEFAULT_REGISTRY_URL);
     private final Model<String> catalogId = Model.of("");
     private final Model<String> workspace = Model.of("");
@@ -61,6 +62,11 @@ public class PortolanPage extends GeoServerBasePage {
         return new PortolanRegistryFacade(getCatalog());
     }
 
+    @Override
+    protected ComponentAuthorizer getPageAuthorizer() {
+        return ComponentAuthorizer.AUTHENTICATED;
+    }
+
     private String renderRegistry(List<RegistryCatalogEntry> entries) {
         if (entries.isEmpty()) {
             return "No registry catalogs found.";
@@ -77,6 +83,10 @@ public class PortolanPage extends GeoServerBasePage {
         builder.append("Creatable: ").append(plan.creatableCount()).append("\n\n");
         for (PortolanPublicationEntry entry : plan.entries()) {
             builder.append(entry.collectionId())
+                    .append(" -> store ")
+                    .append(entry.storeName())
+                    .append(" / layer ")
+                    .append(entry.layerName())
                     .append(" | ")
                     .append(entry.format())
                     .append(" | ")

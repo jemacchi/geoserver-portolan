@@ -44,7 +44,8 @@ public final class PortolanPlanner {
             }
             String storeName = geoserverName(collection.id());
             PortolanPlanAction action = action(workspace, storeName, format);
-            String reason = action == PortolanPlanAction.UNSUPPORTED ? "handler not installed" : null;
+            String reason =
+                    action == PortolanPlanAction.UNSUPPORTED ? PortolanStoreHandlers.unsupportedReason(format) : null;
             entries.add(new PortolanPublicationEntry(
                     collection.id(), storeName, storeName, format, asset.href(), action, reason));
         }
@@ -59,7 +60,7 @@ public final class PortolanPlanner {
     }
 
     private PortolanPlanAction action(String workspace, String storeName, PortolanResourceFormat format) {
-        if (format == PortolanResourceFormat.PMTILES) {
+        if (!PortolanStoreHandlers.canProvision(format)) {
             return PortolanPlanAction.UNSUPPORTED;
         }
         StoreInfo store = catalog.getStoreByName(workspace, storeName, StoreInfo.class);
