@@ -1,12 +1,11 @@
 <!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
 
 <beans>
-  <bean id="portolanPage" class="org.geoserver.web.MenuPageInfo">
+  <bean id="portolanPage" class="org.geoserver.web.ToolLinkInfo">
     <property name="id" value="portolanPage"/>
     <property name="titleKey" value="PortolanPage.page.title"/>
     <property name="descriptionKey" value="PortolanPage.page.description"/>
     <property name="componentClass" value="org.geoserver.portolan.web.PortolanPage"/>
-    <property name="category" ref="settingsCategory"/>
-    <property name="order" value="10"/>
+    <property name="authorizer" ref="authenticatedAuthorizer"/>
   </bean>
 </beans>
