@@ -150,7 +150,10 @@ public final class PortolanProvisioner {
                 return publishCoverageLayers(entry, coverageStore);
             }
         } catch (Exception exception) {
-            LOGGER.log(Level.WARNING, "Could not publish layers for Portolan collection " + entry.collectionId(), exception);
+            LOGGER.log(
+                    Level.WARNING,
+                    "Could not publish layers for Portolan collection " + entry.collectionId(),
+                    exception);
             return List.of("  layer publication failed: " + exception.getMessage());
         }
         return List.of();
@@ -184,7 +187,8 @@ public final class PortolanProvisioner {
         return messages;
     }
 
-    private List<String> publishCoverageLayers(PortolanPublicationEntry entry, CoverageStoreInfo store) throws Exception {
+    private List<String> publishCoverageLayers(PortolanPublicationEntry entry, CoverageStoreInfo store)
+            throws Exception {
         GridCoverageReader reader = store.getGridCoverageReader(null, null);
         String[] names = reader.getGridCoverageNames();
         if (names.length == 0) {

@@ -102,9 +102,7 @@ public class PortolanPage extends GeoServerSecuredPage {
             if (entry.reason() != null) {
                 builder.append("  Reason: ").append(entry.reason()).append('\n');
             }
-            builder.append("  Asset: ")
-                    .append(entry.href())
-                    .append("\n\n");
+            builder.append("  Asset: ").append(entry.href()).append("\n\n");
         }
         return builder.toString();
     }
