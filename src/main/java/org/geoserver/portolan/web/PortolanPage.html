@@ -1,0 +1,30 @@
+<html>
+  <body>
+    <wicket:extend>
+      <form wicket:id="form">
+        <p wicket:id="hint"></p>
+        <fieldset>
+          <legend>Portolan registry</legend>
+          <p>
+            <label>Registry URL</label><br />
+            <input wicket:id="registryUrl" type="text" size="100" />
+          </p>
+          <p>
+            <label>Catalog id</label><br />
+            <input wicket:id="catalogId" type="text" size="60" />
+          </p>
+          <p>
+            <label>Workspace</label><br />
+            <input wicket:id="workspace" type="text" size="60" />
+          </p>
+          <p>
+            <button wicket:id="load" type="submit">Load registry</button>
+            <button wicket:id="plan" type="submit">Plan selected catalog</button>
+            <button wicket:id="provision" type="submit">Provision selected catalog</button>
+          </p>
+          <textarea wicket:id="output" rows="24" cols="120"></textarea>
+        </fieldset>
+      </form>
+    </wicket:extend>
+  </body>
+</html>
