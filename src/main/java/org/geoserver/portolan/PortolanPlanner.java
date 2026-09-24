@@ -4,8 +4,10 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.StoreInfo;
+import org.geotools.util.logging.Logging;
 import org.portolan.AssetFormat;
 import org.portolan.PortolanAsset;
 import org.portolan.PortolanCatalog;
@@ -13,6 +15,8 @@ import org.portolan.PortolanCollection;
 
 /** Builds a GeoServer publication plan from a Portolan catalog. */
 public final class PortolanPlanner {
+    private static final Logger LOGGER = Logging.getLogger(PortolanPlanner.class);
+
     private final Catalog catalog;
 
     public PortolanPlanner(Catalog catalog) {
@@ -30,15 +34,18 @@ public final class PortolanPlanner {
     public PortolanPublicationPlan plan(PortolanCatalog portolanCatalog, String workspaceName) {
         String catalogId = fallback(portolanCatalog.id(), "portolan");
         String workspace = fallback(workspaceName, catalogId);
+        LOGGER.info(() -> "Planning Portolan catalog " + catalogId + " for workspace " + workspace);
         List<PortolanPublicationEntry> entries = new ArrayList<>();
         for (PortolanCollection collection : portolanCatalog.collections()) {
             PortolanAsset asset = primaryAsset(collection);
             if (asset == null) {
+                LOGGER.info(() -> "Skipping collection " + collection.id() + ": no asset");
                 entries.add(skip(collection.id(), "no asset"));
                 continue;
             }
             PortolanResourceFormat format = format(asset);
             if (format == PortolanResourceFormat.UNKNOWN) {
+                LOGGER.info(() -> "Skipping collection " + collection.id() + ": unsupported asset format");
                 entries.add(skip(collection.id(), "unsupported asset format"));
                 continue;
             }
@@ -46,6 +53,15 @@ public final class PortolanPlanner {
             PortolanPlanAction action = action(workspace, storeName, format);
             String reason =
                     action == PortolanPlanAction.UNSUPPORTED ? PortolanStoreHandlers.unsupportedReason(format) : null;
+            LOGGER.info(() -> "Planned collection "
+                    + collection.id()
+                    + " as "
+                    + format
+                    + " store "
+                    + storeName
+                    + " with action "
+                    + action
+                    + (reason == null ? "" : ": " + reason));
             entries.add(new PortolanPublicationEntry(
                     collection.id(), storeName, storeName, format, asset.href(), action, reason));
         }

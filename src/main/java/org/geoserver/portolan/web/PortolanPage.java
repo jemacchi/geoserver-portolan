@@ -78,22 +78,31 @@ public class PortolanPage extends GeoServerSecuredPage {
 
     private String renderPlan(PortolanPublicationPlan plan) {
         StringBuilder builder = new StringBuilder();
+        builder.append("Plan preview\n");
+        builder.append("GeoServer will create or reuse the following resources.\n\n");
         builder.append("Catalog: ").append(plan.catalogId()).append('\n');
         builder.append("Workspace: ").append(plan.workspace()).append('\n');
         builder.append("Creatable: ").append(plan.creatableCount()).append("\n\n");
         for (PortolanPublicationEntry entry : plan.entries()) {
-            builder.append(entry.collectionId())
-                    .append(" -> store ")
-                    .append(entry.storeName())
-                    .append(" / layer ")
-                    .append(entry.layerName())
-                    .append(" | ")
-                    .append(entry.format())
-                    .append(" | ")
-                    .append(entry.action())
-                    .append(" | ")
-                    .append(entry.reason() == null ? "" : entry.reason())
+            builder.append("Collection: ")
+                    .append(entry.collectionId())
                     .append('\n')
+                    .append("  Store: ")
+                    .append(entry.storeName())
+                    .append('\n')
+                    .append("  Layer: ")
+                    .append(entry.layerName())
+                    .append('\n')
+                    .append("  Format: ")
+                    .append(entry.format())
+                    .append('\n')
+                    .append("  Action: ")
+                    .append(entry.action())
+                    .append('\n');
+            if (entry.reason() != null) {
+                builder.append("  Reason: ").append(entry.reason()).append('\n');
+            }
+            builder.append("  Asset: ")
                     .append(entry.href())
                     .append("\n\n");
         }
