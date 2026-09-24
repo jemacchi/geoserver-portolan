@@ -20,6 +20,8 @@ import org.geotools.api.data.DataAccess;
 import org.geotools.api.feature.Feature;
 import org.geotools.api.feature.type.FeatureType;
 import org.geotools.api.feature.type.Name;
+import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.logging.Logging;
 
 /** Applies the GeoServer catalog mutations for a Portolan publication plan. */
@@ -179,8 +181,11 @@ public final class PortolanProvisioner {
                 resource.setName(layerName);
                 resource.setTitle(entry.collectionId());
                 tagResource(entry, resource);
+                ensureBounds(entry, builder, resource);
                 catalog.add(resource);
                 LOGGER.info(() -> "Created feature type " + layerName + " for store " + store.getName());
+            } else if (ensureBounds(entry, builder, resource)) {
+                catalog.save(resource);
             }
             messages.add(publishLayer(resource, layerName));
         }
@@ -208,12 +213,54 @@ public final class PortolanProvisioner {
                 resource.setName(layerName);
                 resource.setTitle(entry.collectionId());
                 tagResource(entry, resource);
+                ensureBounds(entry, builder, resource);
                 catalog.add(resource);
                 LOGGER.info(() -> "Created coverage " + layerName + " for store " + store.getName());
+            } else if (ensureBounds(entry, builder, resource)) {
+                catalog.save(resource);
             }
             messages.add(publishLayer(resource, layerName));
         }
         return messages;
+    }
+
+    private boolean ensureBounds(PortolanPublicationEntry entry, CatalogBuilder builder, ResourceInfo resource) {
+        try {
+            builder.setupBounds(resource);
+        } catch (Exception exception) {
+            LOGGER.log(
+                    Level.INFO,
+                    "Could not calculate bounds for Portolan resource " + resource.prefixedName(),
+                    exception);
+        }
+        return applyPortolanBoundsIfMissing(entry, resource);
+    }
+
+    private boolean applyPortolanBoundsIfMissing(PortolanPublicationEntry entry, ResourceInfo resource) {
+        if (resource.getLatLonBoundingBox() != null && resource.getNativeBoundingBox() != null) {
+            return false;
+        }
+        double[] bbox = entry.bbox();
+        if (bbox == null) {
+            LOGGER.info(() -> "No Portolan bbox available for resource " + resource.prefixedName());
+            return false;
+        }
+        ReferencedEnvelope envelope =
+                new ReferencedEnvelope(bbox[0], bbox[2], bbox[1], bbox[3], DefaultGeographicCRS.WGS84);
+        if (resource.getNativeBoundingBox() == null) {
+            resource.setNativeBoundingBox(envelope);
+        }
+        if (resource.getLatLonBoundingBox() == null) {
+            resource.setLatLonBoundingBox(envelope);
+        }
+        if (resource.getSRS() == null || resource.getSRS().isBlank()) {
+            resource.setSRS("EPSG:4326");
+        }
+        if (resource.getNativeCRS() == null) {
+            resource.setNativeCRS(DefaultGeographicCRS.WGS84);
+        }
+        LOGGER.info(() -> "Applied Portolan bbox to resource " + resource.prefixedName());
+        return true;
     }
 
     private String publishLayer(ResourceInfo resource, String layerName) throws Exception {

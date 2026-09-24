@@ -9,6 +9,7 @@ public final class PortolanPublicationEntry {
     private final String layerName;
     private final PortolanResourceFormat format;
     private final URI href;
+    private final double[] bbox;
     private final PortolanPlanAction action;
     private final String reason;
 
@@ -18,6 +19,7 @@ public final class PortolanPublicationEntry {
             String layerName,
             PortolanResourceFormat format,
             URI href,
+            double[] bbox,
             PortolanPlanAction action,
             String reason) {
         this.collectionId = collectionId;
@@ -25,6 +27,7 @@ public final class PortolanPublicationEntry {
         this.layerName = layerName;
         this.format = format;
         this.href = href;
+        this.bbox = bbox == null ? null : bbox.clone();
         this.action = action;
         this.reason = reason;
     }
@@ -47,6 +50,10 @@ public final class PortolanPublicationEntry {
 
     public URI href() {
         return href;
+    }
+
+    public double[] bbox() {
+        return bbox == null ? null : bbox.clone();
     }
 
     public PortolanPlanAction action() {

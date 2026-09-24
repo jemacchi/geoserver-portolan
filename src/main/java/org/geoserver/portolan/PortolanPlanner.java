@@ -1,5 +1,6 @@
 package org.geoserver.portolan;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -63,7 +64,7 @@ public final class PortolanPlanner {
                     + action
                     + (reason == null ? "" : ": " + reason));
             entries.add(new PortolanPublicationEntry(
-                    collection.id(), storeName, storeName, format, asset.href(), action, reason));
+                    collection.id(), storeName, storeName, format, asset.href(), bbox(collection), action, reason));
         }
         return new PortolanPublicationPlan(
                 catalogId, portolanCatalog.href().toString(), workspace, List.copyOf(entries));
@@ -72,7 +73,7 @@ public final class PortolanPlanner {
     private PortolanPublicationEntry skip(String collectionId, String reason) {
         String name = geoserverName(collectionId);
         return new PortolanPublicationEntry(
-                collectionId, name, name, PortolanResourceFormat.UNKNOWN, null, PortolanPlanAction.SKIP, reason);
+                collectionId, name, name, PortolanResourceFormat.UNKNOWN, null, null, PortolanPlanAction.SKIP, reason);
     }
 
     private PortolanPlanAction action(String workspace, String storeName, PortolanResourceFormat format) {
@@ -104,6 +105,24 @@ public final class PortolanPlanner {
             return PortolanResourceFormat.PMTILES;
         }
         return PortolanResourceFormat.UNKNOWN;
+    }
+
+    private double[] bbox(PortolanCollection collection) {
+        JsonNode bbox = collection.data().at("/extent/spatial/bbox/0");
+        if (!bbox.isArray() || bbox.size() < 4) {
+            bbox = collection.data().path("bbox");
+        }
+        if (!bbox.isArray() || bbox.size() < 4) {
+            return null;
+        }
+        double minx = bbox.get(0).asDouble(Double.NaN);
+        double miny = bbox.get(1).asDouble(Double.NaN);
+        double maxx = bbox.get(2).asDouble(Double.NaN);
+        double maxy = bbox.get(3).asDouble(Double.NaN);
+        if (!Double.isFinite(minx) || !Double.isFinite(miny) || !Double.isFinite(maxx) || !Double.isFinite(maxy)) {
+            return null;
+        }
+        return new double[] {minx, miny, maxx, maxy};
     }
 
     public static String geoserverName(String value) {
