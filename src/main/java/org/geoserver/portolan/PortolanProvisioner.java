@@ -233,34 +233,45 @@ public final class PortolanProvisioner {
                     "Could not calculate bounds for Portolan resource " + resource.prefixedName(),
                     exception);
         }
-        return applyPortolanBoundsIfMissing(entry, resource);
+        return applyPortolanBounds(entry, resource);
     }
 
-    private boolean applyPortolanBoundsIfMissing(PortolanPublicationEntry entry, ResourceInfo resource) {
-        if (resource.getLatLonBoundingBox() != null && resource.getNativeBoundingBox() != null) {
-            return false;
-        }
+    boolean applyPortolanBounds(PortolanPublicationEntry entry, ResourceInfo resource) {
         double[] bbox = entry.bbox();
         if (bbox == null) {
-            LOGGER.info(() -> "No Portolan bbox available for resource " + resource.prefixedName());
+            LOGGER.info(() -> "No Portolan bbox available for resource " + resourceName(resource));
             return false;
         }
         ReferencedEnvelope envelope =
                 new ReferencedEnvelope(bbox[0], bbox[2], bbox[1], bbox[3], DefaultGeographicCRS.WGS84);
-        if (resource.getNativeBoundingBox() == null) {
-            resource.setNativeBoundingBox(envelope);
-        }
-        if (resource.getLatLonBoundingBox() == null) {
-            resource.setLatLonBoundingBox(envelope);
-        }
+        resource.setNativeBoundingBox(envelope);
+        resource.setLatLonBoundingBox(envelope);
         if (resource.getSRS() == null || resource.getSRS().isBlank()) {
             resource.setSRS("EPSG:4326");
         }
         if (resource.getNativeCRS() == null) {
             resource.setNativeCRS(DefaultGeographicCRS.WGS84);
         }
-        LOGGER.info(() -> "Applied Portolan bbox to resource " + resource.prefixedName());
+        LOGGER.info(() -> "Applied Portolan bbox ["
+                + bbox[0]
+                + ", "
+                + bbox[1]
+                + ", "
+                + bbox[2]
+                + ", "
+                + bbox[3]
+                + "] to resource "
+                + resourceName(resource));
         return true;
+    }
+
+    private String resourceName(ResourceInfo resource) {
+        try {
+            return resource.prefixedName();
+        } catch (RuntimeException exception) {
+            String name = resource.getName();
+            return name == null || name.isBlank() ? "<unnamed>" : name;
+        }
     }
 
     private String publishLayer(ResourceInfo resource, String layerName) throws Exception {
