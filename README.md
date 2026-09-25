@@ -245,6 +245,40 @@ geoserver/src/community/portolan
 
 and build from the GeoServer reactor with the community profile that includes the module.
 
+## Release ZIP
+
+This repository can publish a GeoServer extension ZIP without moving the source
+code into the GeoServer repository.
+
+The ZIP contains:
+
+* `gs-portolan`;
+* `portolan-java`;
+* the GeoServer community store jars needed by the module, including COG,
+  GeoParquet, and PMTiles;
+* runtime dependencies resolved by Maven.
+
+Create a release by pushing a tag from `main`:
+
+```bash
+git checkout main
+git pull --ff-only
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The GitHub Actions workflow builds the module inside the GeoServer
+`geoserver-portolan` integration branch, creates the extension ZIP, uploads it
+as a workflow artifact, and attaches it to the GitHub Release for the tag.
+
+Install the ZIP into a matching GeoServer build:
+
+```bash
+unzip geoserver-portolan-*-extension.zip -d /path/to/geoserver/WEB-INF/lib
+```
+
+Then restart GeoServer.
+
 ## Use
 
 After the jar is installed in GeoServer, the Web UI gets a Portolan menu entry.
