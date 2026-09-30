@@ -111,7 +111,7 @@ public final class PortolanProvisioner {
         CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.setWorkspace(workspace);
         DataStoreInfo store = builder.buildDataStore(entry.storeName());
-        store.setType(PortolanStoreHandlers.GEOPARQUET_TYPE);
+        store.setType(PortolanStoreReadiness.GEOPARQUET_TYPE);
         store.setDescription("Portolan collection " + entry.collectionId());
         store.getConnectionParameters().put("dbtype", "geoparquet");
         store.getConnectionParameters().put("uri", entry.href().toString());
@@ -127,7 +127,7 @@ public final class PortolanProvisioner {
         CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.setWorkspace(workspace);
         DataStoreInfo store = builder.buildDataStore(entry.storeName());
-        store.setType(PortolanStoreHandlers.PMTILES_TYPE);
+        store.setType(PortolanStoreReadiness.PMTILES_TYPE);
         store.setDescription("Portolan collection " + entry.collectionId());
         store.getConnectionParameters().put("pmtiles", entry.href().toString());
         store.getConnectionParameters().put("namespace", namespace(workspace));
@@ -142,7 +142,7 @@ public final class PortolanProvisioner {
         CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.setWorkspace(workspace);
         CoverageStoreInfo store = builder.buildCoverageStore(entry.storeName());
-        store.setType(PortolanStoreHandlers.GEOTIFF_TYPE);
+        store.setType(PortolanStoreReadiness.GEOTIFF_TYPE);
         store.setDescription("Portolan collection " + entry.collectionId());
         store.setURL(cogUrl(entry));
         tagStore(plan, entry, store);

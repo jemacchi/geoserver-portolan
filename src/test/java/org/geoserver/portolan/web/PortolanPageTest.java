@@ -2,8 +2,11 @@ package org.geoserver.portolan.web;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.net.URI;
@@ -15,6 +18,7 @@ import org.geoserver.portolan.PortolanPublicationEntry;
 import org.geoserver.portolan.PortolanPublicationPlan;
 import org.geoserver.portolan.PortolanRegistryFacade;
 import org.geoserver.portolan.PortolanResourceFormat;
+import org.geoserver.portolan.PortolanStoreReadiness;
 import org.geoserver.web.ComponentAuthorizer;
 import org.geoserver.web.GeoServerWicketTestSupport;
 import org.junit.Test;
@@ -68,6 +72,19 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
     }
 
     @Test
+    public void rendersStoreReadinessAndInstallationInstructions() {
+        PortolanStoreReadiness readiness =
+                new PortolanStoreReadiness(name -> !"PMTiles".equals(name), className -> true);
+
+        String rendered = PortolanPage.renderReadiness(readiness);
+
+        assertTrue(rendered.contains("Portolan store readiness: INCOMPLETE"));
+        assertTrue(rendered.contains("GeoParquet: AVAILABLE"));
+        assertTrue(rendered.contains("PMTiles: MISSING"));
+        assertTrue(rendered.contains("Install gs-pmtiles-store."));
+    }
+
+    @Test
     public void pageRequiresAuthenticationAndExecutesRegistryActions() {
         PortolanRegistryFacade facade = mock(PortolanRegistryFacade.class);
         when(facade.listCatalogs(anyString()))
@@ -83,12 +100,17 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
                                 PortolanPlanAction.CREATE,
                                 null,
                                 URI.create("https://example.test/roads.parquet")))));
-        when(facade.provisionRegistryCatalog(anyString(), anyString(), anyString()))
+        when(facade.provision(any(PortolanPublicationPlan.class)))
                 .thenReturn(new PortolanProvisionResult("target", 1, 0, List.of("created")));
         login();
-        TestPage page = new TestPage(facade);
+        TestPage page = new TestPage(facade, new PortolanStoreReadiness(name -> true, className -> true));
         assertEquals(ComponentAuthorizer.AUTHENTICATED, page.authorizer());
         tester.startPage(page);
+        tester.assertEnabled("form:plan");
+        tester.assertDisabled("form:provision");
+        assertTrue(tester.getComponentFromLastRenderedPage("form:readiness")
+                .getDefaultModelObjectAsString()
+                .contains("Portolan store readiness: COMPLETE"));
         FormTester form = tester.newFormTester("form");
         form.setValue("registryUrl", "https://example.test/registry.json");
         form.setValue("catalogId", "demo");
@@ -98,6 +120,7 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
 
         form = tester.newFormTester("form");
         form.submit("plan");
+        tester.assertEnabled("form:provision");
         assertTrue(tester.getComponentFromLastRenderedPage("form:output")
                 .getDefaultModelObjectAsString()
                 .contains("Action: CREATE"));
@@ -109,6 +132,75 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
                 .contains("Created: 1"));
     }
 
+    @Test
+    public void disablesProvisionWhenTheSelectedCatalogNeedsAMissingStore() {
+        PortolanRegistryFacade facade = mock(PortolanRegistryFacade.class);
+        PortolanPublicationPlan blocked = new PortolanPublicationPlan(
+                "demo",
+                "https://example.test/catalog.json",
+                "target",
+                List.of(entry(
+                        "tiles",
+                        PortolanPlanAction.UNSUPPORTED,
+                        "PMTiles store extension is not installed. Install gs-pmtiles-store.",
+                        URI.create("https://example.test/tiles.pmtiles"))));
+        when(facade.planRegistryCatalog(anyString(), anyString(), anyString())).thenReturn(blocked);
+        login();
+        tester.startPage(
+                new TestPage(facade, new PortolanStoreReadiness(name -> !"PMTiles".equals(name), className -> true)));
+
+        FormTester form = tester.newFormTester("form");
+        form.setValue("registryUrl", "https://example.test/registry.json");
+        form.setValue("catalogId", "demo");
+        form.setValue("workspace", "target");
+        form.submit("plan");
+
+        tester.assertDisabled("form:provision");
+        String output = tester.getComponentFromLastRenderedPage("form:output").getDefaultModelObjectAsString();
+        assertTrue(output.contains("Provisioning: BLOCKED"));
+        assertTrue(output.contains("Install gs-pmtiles-store."));
+        verify(facade, never()).provision(any(PortolanPublicationPlan.class));
+    }
+
+    @Test
+    public void rechecksThePlanBeforeProvisioning() {
+        PortolanRegistryFacade facade = mock(PortolanRegistryFacade.class);
+        PortolanPublicationPlan ready = new PortolanPublicationPlan(
+                "demo",
+                "https://example.test/catalog.json",
+                "target",
+                List.of(entry(
+                        "roads", PortolanPlanAction.CREATE, null, URI.create("https://example.test/roads.parquet"))));
+        PortolanPublicationPlan blocked = new PortolanPublicationPlan(
+                "demo",
+                "https://example.test/catalog.json",
+                "target",
+                List.of(entry(
+                        "roads",
+                        PortolanPlanAction.UNSUPPORTED,
+                        "GeoParquet store extension is not installed. Install gs-geoparquet.",
+                        URI.create("https://example.test/roads.parquet"))));
+        when(facade.planRegistryCatalog(anyString(), anyString(), anyString())).thenReturn(ready, blocked);
+        login();
+        tester.startPage(new TestPage(facade, new PortolanStoreReadiness(name -> true, className -> true)));
+
+        FormTester form = tester.newFormTester("form");
+        form.setValue("registryUrl", "https://example.test/registry.json");
+        form.setValue("catalogId", "demo");
+        form.setValue("workspace", "target");
+        form.submit("plan");
+        tester.assertEnabled("form:provision");
+
+        form = tester.newFormTester("form");
+        form.submit("provision");
+
+        tester.assertDisabled("form:provision");
+        assertTrue(tester.getComponentFromLastRenderedPage("form:output")
+                .getDefaultModelObjectAsString()
+                .contains("Provisioning: BLOCKED"));
+        verify(facade, never()).provision(any(PortolanPublicationPlan.class));
+    }
+
     private static PortolanPublicationEntry entry(String id, PortolanPlanAction action, String reason, URI href) {
         return new PortolanPublicationEntry(id, id, id, PortolanResourceFormat.GEOPARQUET, href, null, action, reason);
     }
@@ -116,7 +208,8 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
     private static final class TestPage extends PortolanPage {
         private final PortolanRegistryFacade facade;
 
-        private TestPage(PortolanRegistryFacade facade) {
+        private TestPage(PortolanRegistryFacade facade, PortolanStoreReadiness readiness) {
+            super(readiness);
             this.facade = facade;
         }
 

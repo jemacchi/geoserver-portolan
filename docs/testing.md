@@ -51,6 +51,7 @@ Unit tests use local catalog fixtures and do not contact the public registry. Th
 - reading collection bounding boxes;
 - creating workspaces, stores, and provenance metadata;
 - handling absent plugins and failed layer publication;
+- reporting store readiness and blocking unsafe provisioning;
 - rendering and submitting the authenticated Wicket page;
 - reading a registry and catalog from local file URIs.
 

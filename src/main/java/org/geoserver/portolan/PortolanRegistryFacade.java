@@ -16,8 +16,12 @@ public final class PortolanRegistryFacade {
     private final RegistryAccess registry;
 
     public PortolanRegistryFacade(Catalog catalog) {
+        this(catalog, new PortolanStoreReadiness());
+    }
+
+    public PortolanRegistryFacade(Catalog catalog, PortolanStoreReadiness readiness) {
         this(
-                new PortolanPlanner(catalog),
+                new PortolanPlanner(catalog, readiness),
                 new PortolanProvisioner(catalog)::provision,
                 new PortolanJavaRegistryAccess());
     }
@@ -43,6 +47,10 @@ public final class PortolanRegistryFacade {
     public PortolanProvisionResult provisionRegistryCatalog(
             String registryUrl, String catalogId, String workspaceName) {
         PortolanPublicationPlan plan = planRegistryCatalog(registryUrl, catalogId, workspaceName);
+        return provision.apply(plan);
+    }
+
+    public PortolanProvisionResult provision(PortolanPublicationPlan plan) {
         return provision.apply(plan);
     }
 

@@ -38,4 +38,8 @@ public final class PortolanPublicationPlan {
                 .filter(entry -> entry.action() == PortolanPlanAction.CREATE)
                 .count();
     }
+
+    public boolean provisionable() {
+        return entries.stream().noneMatch(entry -> entry.action() == PortolanPlanAction.UNSUPPORTED);
+    }
 }

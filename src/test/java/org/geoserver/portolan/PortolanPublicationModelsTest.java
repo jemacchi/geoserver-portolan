@@ -2,7 +2,9 @@ package org.geoserver.portolan;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.net.URI;
 import java.util.List;
@@ -47,6 +49,18 @@ public class PortolanPublicationModelsTest {
         assertEquals("demo", plan.workspace());
         assertEquals(List.of(create, exists), plan.entries());
         assertEquals(1, plan.creatableCount());
+        assertTrue(plan.provisionable());
+    }
+
+    @Test
+    public void planIsNotProvisionableWhenARequiredStoreIsUnavailable() {
+        PortolanPublicationPlan plan = new PortolanPublicationPlan(
+                "demo",
+                "https://example.test/catalog.json",
+                "target",
+                List.of(entry(PortolanPlanAction.CREATE), entry(PortolanPlanAction.UNSUPPORTED)));
+
+        assertFalse(plan.provisionable());
     }
 
     @Test

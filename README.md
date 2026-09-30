@@ -280,9 +280,14 @@ libraries that the matching GeoServer installation already provides.
 Install the matching GeoServer community extension for each format that the
 server must publish:
 
-* COG HTTP;
-* GeoParquet;
-* PMTiles.
+* `gs-cog-core` and `gs-cog-http` for COG over HTTP;
+* `gs-geoparquet` for GeoParquet;
+* `gs-pmtiles-store` for PMTiles.
+
+The Web UI remains available when any store extension is absent. Its readiness
+section names each missing artifact. Planning remains available, while
+provisioning stays disabled only when the selected catalog needs a missing
+store. The module reports `COMPLETE` when all three stores are present.
 
 Install the COG S3, Azure, or Google Cloud transport only when catalog asset
 URLs use that provider-specific protocol. GeoServer owns these store
@@ -459,9 +464,10 @@ This repository now contains the first GeoServer Web UI module skeleton:
 * `PortolanRegistryFacade` reads the Portolan registry and downloads selected catalogs.
 * `PortolanPage` adds a Web UI menu page for registry discovery and planning.
 * `PortolanProvisioner` creates the workspace and defines the mutation boundary for store handlers.
+* `PortolanStoreReadiness` reports store availability without making optional extensions startup dependencies.
 
-GeoParquet, COG, and PMTiles are recognized as asset types. PMTiles is planned
-as unsupported until a concrete GeoServer handler is selected.
+GeoParquet, COG, and PMTiles are recognized as asset types. The planner marks
+an entry as unsupported when its matching GeoServer extension is absent.
 
 ## Build and integration
 

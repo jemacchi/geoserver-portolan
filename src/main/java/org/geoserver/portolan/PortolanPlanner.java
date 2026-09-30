@@ -23,7 +23,11 @@ public final class PortolanPlanner {
     private final Function<PortolanResourceFormat, String> unsupportedReason;
 
     public PortolanPlanner(Catalog catalog) {
-        this(catalog, PortolanStoreHandlers::unsupportedReason);
+        this(catalog, new PortolanStoreReadiness()::unsupportedReason);
+    }
+
+    public PortolanPlanner(Catalog catalog, PortolanStoreReadiness readiness) {
+        this(catalog, readiness::unsupportedReason);
     }
 
     PortolanPlanner(Catalog catalog, Function<PortolanResourceFormat, String> unsupportedReason) {
@@ -58,8 +62,8 @@ public final class PortolanPlanner {
                 continue;
             }
             String storeName = geoserverName(collection.id());
-            PortolanPlanAction action = action(workspace, storeName, format);
-            String reason = action == PortolanPlanAction.UNSUPPORTED ? unsupportedReason.apply(format) : null;
+            String reason = unsupportedReason.apply(format);
+            PortolanPlanAction action = action(workspace, storeName, reason);
             LOGGER.info(() -> "Planned collection "
                     + collection.id()
                     + " as "
@@ -82,8 +86,8 @@ public final class PortolanPlanner {
                 collectionId, name, name, PortolanResourceFormat.UNKNOWN, null, null, PortolanPlanAction.SKIP, reason);
     }
 
-    private PortolanPlanAction action(String workspace, String storeName, PortolanResourceFormat format) {
-        if (unsupportedReason.apply(format) != null) {
+    private PortolanPlanAction action(String workspace, String storeName, String unsupportedReason) {
+        if (unsupportedReason != null) {
             return PortolanPlanAction.UNSUPPORTED;
         }
         StoreInfo store = catalog.getStoreByName(workspace, storeName, StoreInfo.class);

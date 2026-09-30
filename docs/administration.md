@@ -13,6 +13,20 @@ The extension adds Portolan to the GeoServer Utilities menu. The item is visible
 
 An empty workspace field uses the Portolan catalog ID.
 
+## Check store readiness
+
+The Portolan page always opens, even when a required store extension is absent.
+The **Store readiness** section reports one state for each supported format:
+
+| Format | Required GeoServer artifacts |
+|---|---|
+| GeoParquet | `gs-geoparquet` |
+| COG over HTTP | `gs-cog-core` and `gs-cog-http` |
+| PMTiles | `gs-pmtiles-store` |
+
+The module reports `COMPLETE` when all three stores are available. A missing
+store does not prevent GeoServer or the Portolan page from starting.
+
 ## Preview a plan
 
 Select **Preview selected catalog plan** before provisioning. The preview does not change the GeoServer catalog.
@@ -25,10 +39,16 @@ Each entry shows the collection, store, layer, asset format, and planned action:
 - `UNSUPPORTED` identifies a missing GeoServer store extension.
 
 The preview also shows a reason when the module cannot provision an entry.
+It reports `Provisioning: BLOCKED` when the selected catalog needs a missing
+store extension. The reason identifies the artifact to install.
 
 ## Provision a catalog
 
 Select **Provision selected catalog** to apply the plan. The module creates the workspace and namespace when they do not exist.
+
+The button starts disabled. A provisionable plan enables it. A blocked plan
+keeps it disabled. The module checks the plan again immediately before it
+changes the GeoServer catalog.
 
 The asset mapping is:
 
