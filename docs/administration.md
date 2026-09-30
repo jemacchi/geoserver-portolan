@@ -58,9 +58,13 @@ The asset mapping is:
 | COG | `GeoTIFF` coverage store and coverage layers |
 | PMTiles | `PMTiles` data store and vector tile layers |
 
-Install each required GeoServer extension before you provision its format. The
-Portolan release ZIP does not duplicate store extensions or their runtime
-dependencies.
+Release assets provide two installation choices:
+
+- `slim` contains Portolan and `portolan-java`. Install the three store extensions separately.
+- `full` also contains the GeoParquet, COG HTTP, and PMTiles extension assemblies.
+
+Both distributions require the GeoServer version used to build the release.
+Stop GeoServer before you extract either ZIP into `WEB-INF/lib`.
 
 When a collection provides a spatial bounding box, the module applies it as the native and geographic bounds. It uses `EPSG:4326` when the resource has no declared CRS.
 

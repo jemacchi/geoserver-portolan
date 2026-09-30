@@ -63,4 +63,5 @@ A running GeoServer remains the integration boundary for opening remote assets t
 
 The `test.yml` workflow runs the suite for pushes to `main` and pull requests. It uploads the JaCoCo report as a workflow artifact.
 
-The release workflow runs the same Maven test phase before it assembles an extension ZIP.
+The release workflow runs the same Maven test phase before it assembles and
+validates the `slim` and `full` extension ZIPs.

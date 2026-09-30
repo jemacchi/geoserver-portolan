@@ -264,17 +264,19 @@ The build fails when line coverage falls below 85%.
 
 See [Testing](docs/testing.md) for the test boundaries and [Administration](docs/administration.md) for the Web UI workflow.
 
-## Release ZIP
+## Release ZIPs
 
-This repository can publish a GeoServer extension ZIP without moving the source
+This repository can publish GeoServer extension ZIPs without moving the source
 code into the GeoServer repository.
 
-The ZIP contains:
+Each release provides `slim` and `full` distributions.
+
+The `slim` ZIP contains:
 
 * `gs-portolan`;
 * `portolan-java`.
 
-The ZIP does not duplicate GeoServer core, GeoTools core, Spring, or Jackson
+The `slim` ZIP does not duplicate GeoServer core, GeoTools core, Spring, or Jackson
 libraries that the matching GeoServer installation already provides.
 
 Install the matching GeoServer community extension for each format that the
@@ -293,6 +295,14 @@ Install the COG S3, Azure, or Google Cloud transport only when catalog asset
 URLs use that provider-specific protocol. GeoServer owns these store
 dependencies and publishes their complete runtime assemblies separately.
 
+The `full` ZIP combines `slim` with the official GeoServer assemblies for
+GeoParquet, COG over HTTP, and PMTiles. It is larger because GeoParquet includes
+DuckDB and PMTiles includes its supported object-storage clients. It excludes
+GeoServer and GeoTools core modules. The official store assemblies can repeat
+shared third-party JARs from the base installation. Use `full` for a new
+matching GeoServer installation. Use `slim` when the three store extensions are
+already installed and managed separately. The `full` ZIP can exceed 150 MiB.
+
 Create a release by pushing a tag from `main`:
 
 ```bash
@@ -303,14 +313,21 @@ git push origin v0.1.1
 ```
 
 The GitHub Actions workflow builds the module inside the GeoServer
-`geoserver-portolan` integration branch. It rejects duplicate GeoServer core
-libraries and extension ZIPs larger than 5 MiB. The release filename includes
-the Portolan tag version.
+`geoserver-portolan` integration branch. It uses each store module's official
+assembly descriptor for the `full` ZIP. It rejects conflicting files and
+GeoServer or GeoTools core modules. The 5 MiB limit applies to `slim`. Both
+filenames include the Portolan tag version.
 
 Install the ZIP into a matching GeoServer build:
 
 ```bash
-unzip geoserver-portolan-*-extension.zip -d /path/to/geoserver/WEB-INF/lib
+unzip geoserver-portolan-*-slim.zip -d /path/to/geoserver/WEB-INF/lib
+```
+
+For a new installation without the required stores, use:
+
+```bash
+unzip geoserver-portolan-*-full.zip -d /path/to/geoserver/WEB-INF/lib
 ```
 
 Then restart GeoServer.
