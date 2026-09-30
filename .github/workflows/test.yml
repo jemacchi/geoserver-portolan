@@ -1,0 +1,64 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout geoserver-portolan
+        uses: actions/checkout@v4
+        with:
+          path: geoserver-portolan
+
+      - name: Checkout portolan-java
+        uses: actions/checkout@v4
+        with:
+          repository: jemacchi/portolan-java
+          path: portolan-java
+
+      - name: Checkout GeoServer integration branch
+        uses: actions/checkout@v4
+        with:
+          repository: jemacchi/geoserver
+          ref: geoserver-portolan
+          path: geoserver
+          submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Install portolan-java
+        run: mvn -B -f portolan-java/pom.xml install
+
+      - name: Overlay module source
+        run: |
+          rm -rf geoserver/src/community/portolan
+          mkdir -p geoserver/src/community/portolan
+          rsync -a --delete \
+            --exclude .git \
+            --exclude target \
+            geoserver-portolan/ geoserver/src/community/portolan/
+
+      - name: Test module and enforce coverage
+        run: mvn -B -f geoserver/src/community/pom.xml -Pportolan -pl portolan test
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: geoserver/src/community/portolan/target/site/jacoco
+          if-no-files-found: warn

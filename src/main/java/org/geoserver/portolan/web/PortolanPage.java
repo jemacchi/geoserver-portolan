@@ -58,7 +58,7 @@ public class PortolanPage extends GeoServerSecuredPage {
         });
     }
 
-    private PortolanRegistryFacade facade() {
+    protected PortolanRegistryFacade facade() {
         return new PortolanRegistryFacade(getCatalog());
     }
 
@@ -67,7 +67,7 @@ public class PortolanPage extends GeoServerSecuredPage {
         return ComponentAuthorizer.AUTHENTICATED;
     }
 
-    private String renderRegistry(List<RegistryCatalogEntry> entries) {
+    static String renderRegistry(List<RegistryCatalogEntry> entries) {
         if (entries.isEmpty()) {
             return "No registry catalogs found.";
         }
@@ -76,7 +76,7 @@ public class PortolanPage extends GeoServerSecuredPage {
                 .collect(Collectors.joining("\n\n"));
     }
 
-    private String renderPlan(PortolanPublicationPlan plan) {
+    static String renderPlan(PortolanPublicationPlan plan) {
         StringBuilder builder = new StringBuilder();
         builder.append("Plan preview\n");
         builder.append("GeoServer will create or reuse the following resources.\n\n");
@@ -107,7 +107,7 @@ public class PortolanPage extends GeoServerSecuredPage {
         return builder.toString();
     }
 
-    private String renderResult(PortolanProvisionResult result) {
+    static String renderResult(PortolanProvisionResult result) {
         return "Workspace: "
                 + result.workspace()
                 + "\nCreated: "

@@ -4,7 +4,7 @@ Native Portolan catalog integration for GeoServer.
 
 `geoserver-portolan` allows GeoServer to understand a Portolan catalog and provision native GeoServer catalog objects from its contents.
 
-The first implementation adds a Web UI page, reads a Portolan registry through `portolan-java`, builds a publication plan, and creates native GeoServer stores for COG and GeoParquet assets. PMTiles entries are detected and reported as unsupported until a GeoServer-side serving path exists.
+The module adds a Web UI page, reads a Portolan registry through `portolan-java`, builds a publication plan, and creates native GeoServer stores, resources, and layers for GeoParquet, COG, and PMTiles assets.
 
 The module uses `portolan-java` to implement Portolan semantics and delegates actual geospatial data access to existing GeoServer/GeoTools stores.
 
@@ -143,7 +143,7 @@ geoserver-portolan
 * synchronization;
 * GeoServer configuration/UI where appropriate.
 
-The module currently creates stores and records Portolan provenance metadata. Automatic resource and layer creation depends on installed GeoServer/GeoTools handlers for each asset type, so that step is kept behind the publication boundary.
+The module creates stores, resources, and layers through the installed GeoServer and GeoTools handlers. It records Portolan provenance metadata on each managed object.
 
 ## Mapping layer
 
@@ -245,6 +245,25 @@ geoserver/src/community/portolan
 
 and build from the GeoServer reactor with the community profile that includes the module.
 
+## Test
+
+Run the unit and Web UI tests inside a matching GeoServer source tree:
+
+```bash
+GEOSERVER_SRC=/path/to/geoserver make test
+```
+
+Generate the JaCoCo report and enforce the 85% line coverage gate:
+
+```bash
+GEOSERVER_SRC=/path/to/geoserver make coverage
+```
+
+The command prints the absolute path to `target/site/jacoco/index.html`.
+The build fails when line coverage falls below 85%.
+
+See [Testing](docs/testing.md) for the test boundaries and [Administration](docs/administration.md) for the Web UI workflow.
+
 ## Release ZIP
 
 This repository can publish a GeoServer extension ZIP without moving the source
@@ -253,23 +272,35 @@ code into the GeoServer repository.
 The ZIP contains:
 
 * `gs-portolan`;
-* `portolan-java`;
-* the GeoServer community store jars needed by the module, including COG,
-  GeoParquet, and PMTiles;
-* runtime dependencies resolved by Maven.
+* `portolan-java`.
+
+The ZIP does not duplicate GeoServer core, GeoTools core, Spring, or Jackson
+libraries that the matching GeoServer installation already provides.
+
+Install the matching GeoServer community extension for each format that the
+server must publish:
+
+* COG HTTP;
+* GeoParquet;
+* PMTiles.
+
+Install the COG S3, Azure, or Google Cloud transport only when catalog asset
+URLs use that provider-specific protocol. GeoServer owns these store
+dependencies and publishes their complete runtime assemblies separately.
 
 Create a release by pushing a tag from `main`:
 
 ```bash
 git checkout main
 git pull --ff-only
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 The GitHub Actions workflow builds the module inside the GeoServer
-`geoserver-portolan` integration branch, creates the extension ZIP, uploads it
-as a workflow artifact, and attaches it to the GitHub Release for the tag.
+`geoserver-portolan` integration branch. It rejects duplicate GeoServer core
+libraries and extension ZIPs larger than 5 MiB. The release filename includes
+the Portolan tag version.
 
 Install the ZIP into a matching GeoServer build:
 

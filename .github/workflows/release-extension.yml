@@ -67,13 +67,46 @@ jobs:
       - name: Package extension zip
         run: mvn -B -f geoserver/src/community/pom.xml -Pportolan -pl portolan package -DskipTests
 
-      - name: Collect artifact
+      - name: Collect and validate artifact
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p dist
-          find geoserver/src/community/portolan/target \
-            -name 'geoserver-portolan-*-extension.zip' \
-            -exec cp {} dist/ \;
-          unzip -l dist/geoserver-portolan-*-extension.zip
+
+          mapfile -t portolan_zips < <(find geoserver/src/community/portolan/target \
+            -type f -name 'geoserver-portolan-*-extension.zip')
+          if [[ ${#portolan_zips[@]} -ne 1 ]]; then
+            echo "Expected one Portolan archive, found ${#portolan_zips[@]}" >&2
+            exit 1
+          fi
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            release_version="${GITHUB_REF_NAME#v}"
+          else
+            release_version="dev-${GITHUB_SHA::7}"
+          fi
+          archive="dist/geoserver-portolan-${release_version}-extension.zip"
+          cp "${portolan_zips[0]}" "$archive"
+          archive_entries="$(unzip -Z1 "$archive")"
+
+          for required in 'gs-portolan-*.jar' 'portolan-java-*.jar'; do
+            grep -Eq "^${required//\*/.*}$" <<<"$archive_entries" || {
+              echo "Missing required artifact: $required" >&2
+              exit 1
+            }
+          done
+
+          provided_pattern='^(gs-main|gs-web-core|gt-main|spring-core|jackson-databind)-.*\.jar$'
+          if grep -Eq "$provided_pattern" <<<"$archive_entries"; then
+            echo 'Bundle contains libraries provided by GeoServer' >&2
+            exit 1
+          fi
+          if [[ $(stat -c %s "$archive") -gt 5242880 ]]; then
+            echo 'Extension ZIP exceeds the 5 MiB release limit' >&2
+            exit 1
+          fi
+
+          ls -lh "$archive"
+          unzip -l "$archive"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4

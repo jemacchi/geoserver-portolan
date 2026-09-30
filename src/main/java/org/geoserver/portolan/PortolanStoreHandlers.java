@@ -43,7 +43,7 @@ final class PortolanStoreHandlers {
         return false;
     }
 
-    private static boolean isClassPresent(String className) {
+    static boolean isClassPresent(String className) {
         try {
             Class.forName(className, false, PortolanStoreHandlers.class.getClassLoader());
             return true;

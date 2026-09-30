@@ -5,6 +5,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.StoreInfo;
@@ -19,9 +20,15 @@ public final class PortolanPlanner {
     private static final Logger LOGGER = Logging.getLogger(PortolanPlanner.class);
 
     private final Catalog catalog;
+    private final Function<PortolanResourceFormat, String> unsupportedReason;
 
     public PortolanPlanner(Catalog catalog) {
+        this(catalog, PortolanStoreHandlers::unsupportedReason);
+    }
+
+    PortolanPlanner(Catalog catalog, Function<PortolanResourceFormat, String> unsupportedReason) {
         this.catalog = catalog;
+        this.unsupportedReason = unsupportedReason;
     }
 
     public PortolanPublicationPlan plan(Path catalogPath, String workspaceName) {
@@ -52,8 +59,7 @@ public final class PortolanPlanner {
             }
             String storeName = geoserverName(collection.id());
             PortolanPlanAction action = action(workspace, storeName, format);
-            String reason =
-                    action == PortolanPlanAction.UNSUPPORTED ? PortolanStoreHandlers.unsupportedReason(format) : null;
+            String reason = action == PortolanPlanAction.UNSUPPORTED ? unsupportedReason.apply(format) : null;
             LOGGER.info(() -> "Planned collection "
                     + collection.id()
                     + " as "
@@ -77,7 +83,7 @@ public final class PortolanPlanner {
     }
 
     private PortolanPlanAction action(String workspace, String storeName, PortolanResourceFormat format) {
-        if (!PortolanStoreHandlers.canProvision(format)) {
+        if (unsupportedReason.apply(format) != null) {
             return PortolanPlanAction.UNSUPPORTED;
         }
         StoreInfo store = catalog.getStoreByName(workspace, storeName, StoreInfo.class);

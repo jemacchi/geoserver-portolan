@@ -10,9 +10,13 @@
     <dependencySet>
       <outputDirectory>/</outputDirectory>
       <useProjectArtifact>true</useProjectArtifact>
-      <useTransitiveDependencies>true</useTransitiveDependencies>
+      <useTransitiveDependencies>false</useTransitiveDependencies>
       <scope>runtime</scope>
       <unpack>false</unpack>
+      <includes>
+        <include>org.geoserver.community:gs-portolan</include>
+        <include>org.portolan:portolan-java</include>
+      </includes>
     </dependencySet>
   </dependencySets>
   <files>

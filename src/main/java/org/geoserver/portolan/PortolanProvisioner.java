@@ -2,6 +2,7 @@ package org.geoserver.portolan;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geoserver.catalog.Catalog;
@@ -34,9 +35,16 @@ public final class PortolanProvisioner {
     public static final String METADATA_ASSET = "portolan.asset";
 
     private final Catalog catalog;
+    private final BiFunction<PortolanPublicationEntry, StoreInfo, List<String>> layerPublisher;
 
     public PortolanProvisioner(Catalog catalog) {
         this.catalog = catalog;
+        this.layerPublisher = this::publishLayers;
+    }
+
+    PortolanProvisioner(Catalog catalog, BiFunction<PortolanPublicationEntry, StoreInfo, List<String>> layerPublisher) {
+        this.catalog = catalog;
+        this.layerPublisher = layerPublisher;
     }
 
     public PortolanProvisionResult provision(PortolanPublicationPlan plan) {
@@ -63,7 +71,7 @@ public final class PortolanProvisioner {
                 messages.add(entry.collectionId() + ": no GeoServer store handler for " + entry.format());
                 continue;
             }
-            List<String> layerMessages = publishLayers(entry, store);
+            List<String> layerMessages = layerPublisher.apply(entry, store);
             if (layerMessages.isEmpty()) {
                 skipped++;
                 messages.add(entry.collectionId() + ": no layers published from " + store.getName());
@@ -288,14 +296,14 @@ public final class PortolanProvisioner {
         return "  created layer: " + resource.prefixedName();
     }
 
-    private String layerName(PortolanPublicationEntry entry, String nativeName, int nativeCount) {
+    String layerName(PortolanPublicationEntry entry, String nativeName, int nativeCount) {
         if (nativeCount <= 1) {
             return entry.layerName();
         }
         return PortolanPlanner.geoserverName(entry.layerName() + "__" + nativeName);
     }
 
-    private int countCreated(List<String> messages) {
+    int countCreated(List<String> messages) {
         int created = 0;
         for (String message : messages) {
             if (message.contains("created layer:")) {
@@ -305,7 +313,7 @@ public final class PortolanProvisioner {
         return created;
     }
 
-    private String cogUrl(PortolanPublicationEntry entry) {
+    String cogUrl(PortolanPublicationEntry entry) {
         String href = entry.href().toString();
         return href.startsWith("cog://") ? href : "cog://" + href;
     }
