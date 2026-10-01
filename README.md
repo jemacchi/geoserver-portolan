@@ -419,47 +419,6 @@ This is an important design goal.
 
 Portolan should be consumable from different language ecosystems without requiring the reference CLI.
 
-## Initial development phases
-
-### Phase 1 — Discovery
-
-* add `portolan-java`;
-* configure a catalog URI;
-* read the catalog;
-* list compatible collections/assets;
-* expose diagnostics.
-
-### Phase 2 — Planning
-
-Build an internal representation of the desired GeoServer configuration without modifying the GeoServer catalog.
-
-```text
-Portolan → PublicationPlan
-```
-
-### Phase 3 — Provisioning
-
-Support initial mappings:
-
-```text
-GeoParquet → GeoParquet DataStore
-COG        → COG CoverageStore
-```
-
-and create the corresponding resources and layers.
-
-### Phase 4 — Provenance
-
-Record the Portolan source associated with managed GeoServer resources.
-
-### Phase 5 — Synchronization
-
-Reconcile changes in Portolan catalogs with existing managed GeoServer resources.
-
-### Phase 6 — Extensibility
-
-Allow additional asset-to-GeoServer mappings without increasing coupling between the Portolan core and individual GeoServer data formats.
-
 ## Design principles
 
 1. Portolan is a catalog, not a GeoTools DataStore.
