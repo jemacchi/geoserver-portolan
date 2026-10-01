@@ -1,29 +1,65 @@
 # GeoServer Cloud integration
 
-GeoServer Cloud has a different source layout. Keep this repository as the
-source of truth and mount it as a submodule under `src/extensions`.
-
-Use this layout:
+GeoServer Cloud can load Portolan without a source change or a custom build.
+The `cloud` release ZIP contains these JARs:
 
 ```text
-geoserver-cloud/
-  src/
-    extensions/
-      portolan/       -> git submodule for geoserver-portolan
+geoserver-portolan-<version>.jar
+geoserver-portolan-cloud-<version>.jar
+portolan-java-<version>.jar
 ```
 
-Add the submodule from the GeoServer Cloud repository:
+This installation follows the GeoServer Cloud
+[additional libraries mechanism](https://geoserver.org/geoserver-cloud/user-guide/additional-libs-and-fonts/).
+
+The adapter registers `io.multivers.geoserver.portolan` through Spring Boot
+auto-configuration. It activates only when the GeoServer Web UI and the core
+Portolan module are present. It also requires
+`geoserver.service.webui.enabled=true`.
+
+## Install the extension
+
+Download the `cloud` ZIP for your GeoServer version. Extract it into a host
+directory:
 
 ```bash
-git checkout geoserver-portolan
-git submodule add git@github.com:jemacchi/geoserver-portolan.git src/extensions/portolan
+mkdir -p additional-libs/portolan
+unzip geoserver-portolan-*-cloud.zip -d additional-libs/portolan
 ```
 
-Then add `portolan` to `src/extensions/pom.xml`.
+Mount the directory at `/opt/additional_libs` in the Web UI service:
 
-```xml
-<module>portolan</module>
+```yaml
+services:
+  webui:
+    volumes:
+      - ./additional-libs/portolan:/opt/additional_libs:ro
 ```
 
-This first module targets the GeoServer Web UI API. A later GeoServer Cloud
-starter can wrap it if the deployment needs Spring Boot auto-configuration.
+Mount the same libraries in another GeoServer service when that service needs
+the module classes. Keep the classpath consistent across replicas of one
+service.
+
+GeoParquet, COG, and PMTiles remain separate GeoServer extensions. Enable each
+store extension in every service that reads its catalog objects. The Portolan
+page reports which store extension is missing.
+
+Restart the affected services after you change the mounted JARs:
+
+```bash
+docker compose up -d --force-recreate webui
+docker compose logs -f webui
+```
+
+Add `-Dloader.debug=true` to `JAVA_OPTS` when you need to inspect additional
+library loading.
+
+## Vanilla isolation
+
+The `slim` and `full` release ZIPs contain no Spring Boot adapter. Install one
+of those ZIPs into `WEB-INF/lib` for vanilla GeoServer. Do not copy
+`geoserver-portolan-cloud` into a vanilla deployment.
+
+The auto-configuration source lives under
+`io.multivers.geoserver.portolan.cloud`. The core module uses the package
+`io.multivers.geoserver.portolan`.

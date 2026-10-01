@@ -58,13 +58,15 @@ The asset mapping is:
 | COG | `GeoTIFF` coverage store and coverage layers |
 | PMTiles | `PMTiles` data store and vector tile layers |
 
-Release assets provide two installation choices:
+Release assets provide three installation choices:
 
 - `slim` contains Portolan and `portolan-java`. Install the three store extensions separately.
 - `full` also contains the GeoParquet, COG HTTP, and PMTiles extension assemblies.
+- `cloud` adds the Spring Boot adapter required by GeoServer Cloud `/opt/additional_libs`.
 
-Both distributions require the GeoServer version used to build the release.
-Stop GeoServer before you extract either ZIP into `WEB-INF/lib`.
+All distributions require the GeoServer version used to build the release.
+Stop vanilla GeoServer before you extract `slim` or `full` into `WEB-INF/lib`.
+Mount the extracted `cloud` files in the GeoServer Cloud Web UI service.
 
 When a collection provides a spatial bounding box, the module applies it as the native and geographic bounds. It uses `EPSG:4326` when the resource has no declared CRS.
 
@@ -83,7 +85,7 @@ These values identify the source catalog, collection, and asset.
 
 ## Logs
 
-GeoServer logs each planning and provisioning step under `org.geoserver.portolan`.
+GeoServer logs each planning and provisioning step under `io.multivers.geoserver.portolan`.
 The messages include the catalog ID, workspace, collection, format, store, action, bounds, and layer result.
 
 Increase the logger level in GeoServer when you need more detail from the surrounding store implementation.

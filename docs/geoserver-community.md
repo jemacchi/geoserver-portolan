@@ -28,11 +28,19 @@ Then add `portolan` to `src/community/pom.xml` as a module.
 Build from the GeoServer repository:
 
 ```bash
-mvn -pl :gs-portolan -am install
+mvn -pl :geoserver-portolan -am install
 ```
 
 The module contributes a Web UI menu page through `applicationContext.xml`.
-The page appears as `Portolan registry` in the Portolan menu category.
+The page appears as `Portolan` in the Utilities menu.
+
+The module uses these Maven coordinates:
+
+```text
+io.multivers.geoserver:geoserver-portolan
+```
+
+Its Java API starts at `io.multivers.geoserver.portolan`.
 
 ## Dependency on portolan-java
 

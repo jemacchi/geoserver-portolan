@@ -1,10 +1,10 @@
-.PHONY: help test coverage build install
+.PHONY: help test test-cloud coverage build build-cloud install
 
 MVN ?= mvn
 GEOSERVER_SRC ?=
 
 help:
-	@printf '%s\n' 'Targets: test coverage build install'
+	@printf '%s\n' 'Targets: test test-cloud coverage build build-cloud install'
 	@printf '%s\n' 'Use GEOSERVER_SRC=/path/to/geoserver to build with the GeoServer community parent.'
 
 test:
@@ -20,6 +20,9 @@ test:
 	else \
 		$(MVN) test; \
 	fi
+
+test-cloud:
+	$(MVN) -f cloud/pom.xml test
 
 coverage:
 	@if [ -n "$(GEOSERVER_SRC)" ]; then \
@@ -51,6 +54,9 @@ build:
 	else \
 		$(MVN) package; \
 	fi
+
+build-cloud:
+	$(MVN) -f cloud/pom.xml package
 
 install:
 	@if [ -n "$(GEOSERVER_SRC)" ]; then \

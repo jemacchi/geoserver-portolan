@@ -14,7 +14,7 @@
       <scope>runtime</scope>
       <unpack>false</unpack>
       <includes>
-        <include>org.geoserver.community:gs-portolan</include>
+        <include>io.multivers.geoserver:geoserver-portolan</include>
         <include>org.portolan:portolan-java</include>
       </includes>
     </dependencySet>

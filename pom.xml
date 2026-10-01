@@ -9,10 +9,10 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <groupId>org.geoserver.community</groupId>
-  <artifactId>gs-portolan</artifactId>
+  <groupId>io.multivers.geoserver</groupId>
+  <artifactId>geoserver-portolan</artifactId>
   <packaging>jar</packaging>
-  <name>GeoServer Portolan module</name>
+  <name>Multivers GeoServer Portolan module</name>
   <description>Native Portolan registry and catalog provisioning for GeoServer.</description>
 
   <dependencies>

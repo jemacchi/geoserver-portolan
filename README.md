@@ -269,11 +269,11 @@ See [Testing](docs/testing.md) for the test boundaries and [Administration](docs
 This repository can publish GeoServer extension ZIPs without moving the source
 code into the GeoServer repository.
 
-Each release provides `slim` and `full` distributions.
+Each release provides `slim`, `full`, and `cloud` distributions.
 
 The `slim` ZIP contains:
 
-* `gs-portolan`;
+* `geoserver-portolan`;
 * `portolan-java`.
 
 The `slim` ZIP does not duplicate GeoServer core, GeoTools core, Spring, or Jackson
@@ -303,6 +303,16 @@ shared third-party JARs from the base installation. Use `full` for a new
 matching GeoServer installation. Use `slim` when the three store extensions are
 already installed and managed separately. The `full` ZIP can exceed 150 MiB.
 
+The `cloud` ZIP contains the two `slim` JARs and
+`geoserver-portolan-cloud`. The third JAR registers the module through Spring
+Boot auto-configuration. Extract this ZIP into the host directory mounted at
+`/opt/additional_libs` in the GeoServer Cloud Web UI service. Required store
+extensions must also be present in each Cloud service that uses those stores.
+
+Do not install `geoserver-portolan-cloud` in a vanilla GeoServer. The `slim`
+and `full` ZIPs exclude Spring Boot classes and remain the vanilla
+distributions.
+
 Create a release by pushing a tag from `main`:
 
 ```bash
@@ -315,7 +325,7 @@ git push origin v0.2.0
 The GitHub Actions workflow builds the module inside the GeoServer
 `geoserver-portolan` integration branch. It uses each store module's official
 assembly descriptor for the `full` ZIP. It rejects conflicting files and
-GeoServer or GeoTools core modules. The 5 MiB limit applies to `slim`. Both
+GeoServer or GeoTools core modules. The 5 MiB limit applies to `slim`. All
 filenames include the Portolan tag version.
 
 Install the ZIP into a matching GeoServer build:
@@ -331,6 +341,8 @@ unzip geoserver-portolan-*-full.zip -d /path/to/geoserver/WEB-INF/lib
 ```
 
 Then restart GeoServer.
+
+For GeoServer Cloud, see [GeoServer Cloud integration](docs/geoserver-cloud.md).
 
 ## Use
 

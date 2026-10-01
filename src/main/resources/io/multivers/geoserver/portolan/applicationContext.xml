@@ -1,0 +1,13 @@
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
+
+<beans>
+  <bean id="portolanStoreReadiness" class="io.multivers.geoserver.portolan.PortolanStoreReadiness"/>
+
+  <bean id="portolanPage" class="org.geoserver.web.ToolLinkInfo">
+    <property name="id" value="portolanPage"/>
+    <property name="titleKey" value="PortolanPage.page.title"/>
+    <property name="descriptionKey" value="PortolanPage.page.description"/>
+    <property name="componentClass" value="io.multivers.geoserver.portolan.web.PortolanPage"/>
+    <property name="authorizer" ref="authenticatedAuthorizer"/>
+  </bean>
+</beans>
