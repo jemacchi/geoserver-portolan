@@ -1,0 +1,38 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: geoserver-cloud-webui
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: install-portolan
+          image: alpine:3.24.0
+          env:
+            - name: PORTOLAN_VERSION
+              value: "REPLACE_WITH_RELEASE_VERSION"
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              apk add --no-cache curl unzip
+              archive="geoserver-portolan-${PORTOLAN_VERSION}-cloud.zip"
+              release_url="https://github.com/jemacchi/geoserver-portolan/releases"
+              curl --fail --location --retry 3 \
+                "${release_url}/download/v${PORTOLAN_VERSION}/${archive}" \
+                --output "/tmp/${archive}"
+              unzip -jo "/tmp/${archive}" '*.jar' -d /opt/additional_libs
+              chmod 0444 /opt/additional_libs/*.jar
+          volumeMounts:
+            - name: portolan-additional-libs
+              mountPath: /opt/additional_libs
+      containers:
+        - name: webui
+          volumeMounts:
+            - name: portolan-additional-libs
+              mountPath: /opt/additional_libs
+              readOnly: true
+      volumes:
+        - name: portolan-additional-libs
+          emptyDir: {}

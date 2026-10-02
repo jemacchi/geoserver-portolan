@@ -1,0 +1,32 @@
+---
+services:
+  portolan-libs-init:
+    image: alpine:3.24.0
+    user: root
+    volumes:
+      - ${PORTOLAN_CLOUD_ZIP:?Set PORTOLAN_CLOUD_ZIP}:/bundle/portolan.zip:ro
+      - portolan_additional_libs:/opt/additional_libs
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        apk add --no-cache unzip
+        find /opt/additional_libs -maxdepth 1 -type f \
+          \( \
+            -name 'geoserver-portolan-*.jar' -o \
+            -name 'portolan-java-*.jar' \
+          \) \
+          -delete
+        unzip -jo /bundle/portolan.zip '*.jar' -d /opt/additional_libs
+        chmod 0444 /opt/additional_libs/*.jar
+    restart: "no"
+
+  webui:
+    depends_on:
+      portolan-libs-init:
+        condition: service_completed_successfully
+    volumes:
+      - portolan_additional_libs:/opt/additional_libs:ro
+
+volumes:
+  portolan_additional_libs:

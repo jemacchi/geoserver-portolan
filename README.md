@@ -342,7 +342,9 @@ unzip geoserver-portolan-*-full.zip -d /path/to/geoserver/WEB-INF/lib
 
 Then restart GeoServer.
 
-For GeoServer Cloud, see [GeoServer Cloud integration](docs/geoserver-cloud.md).
+For container and manual installation, see
+[Install on GeoServer](docs/installation.md). For GeoServer Cloud, see
+[Install on GeoServer Cloud](docs/geoserver-cloud.md).
 
 ## Use
 
