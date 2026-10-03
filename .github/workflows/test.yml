@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: jemacchi/portolan-java
+          ref: v0.1.2
           path: portolan-java
 
       - name: Checkout GeoServer integration branch
@@ -41,7 +42,10 @@ jobs:
           cache: maven
 
       - name: Install portolan-java
-        run: mvn -B -f portolan-java/pom.xml install
+        run: |
+          mvn -B -f portolan-java/pom.xml versions:set \
+            -DnewVersion=0.1.2 -DgenerateBackupPoms=false
+          mvn -B -f portolan-java/pom.xml install
 
       - name: Overlay module source
         run: |
