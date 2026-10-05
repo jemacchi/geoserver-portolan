@@ -20,7 +20,7 @@ The **Store readiness** section reports one state for each supported format:
 
 | Format | Required GeoServer artifacts |
 |---|---|
-| GeoParquet | `gs-geoparquet` |
+| GeoParquet | Vanilla: `gs-geoparquet`. Cloud: Parquetry `Parquet`, with `gs-geoparquet` as fallback. |
 | COG over HTTP | `gs-cog-core` and `gs-cog-http` |
 | PMTiles | `gs-pmtiles-store` |
 
@@ -54,7 +54,7 @@ The asset mapping is:
 
 | Portolan asset | GeoServer object |
 |---|---|
-| GeoParquet | `GeoParquet` data store and feature layers |
+| GeoParquet | Vanilla: `GeoParquet` data store. Cloud: Parquetry `Parquet`, with classic fallback. Both create feature layers. |
 | COG | `GeoTIFF` coverage store and coverage layers |
 | PMTiles | `PMTiles` data store and vector tile layers |
 
@@ -63,6 +63,10 @@ Release assets provide three installation choices:
 - `slim` contains Portolan and `portolan-java`. Install the three store extensions separately.
 - `full` also contains the GeoParquet, COG HTTP, and PMTiles extension assemblies.
 - `cloud` adds the Spring Boot adapter required by GeoServer Cloud `/opt/additional_libs`.
+
+The Cloud backend keeps GeoParquet as the Portolan asset format. It changes
+only the GeoServer store implementation. Existing stores retain their original
+type.
 
 All distributions require the GeoServer version used to build the release.
 Stop vanilla GeoServer before you extract `slim` or `full` into `WEB-INF/lib`.

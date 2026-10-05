@@ -2,9 +2,14 @@
 
 Native Portolan catalog integration for GeoServer.
 
-`geoserver-portolan` allows GeoServer to understand a Portolan catalog and provision native GeoServer catalog objects from its contents.
+`geoserver-portolan` allows GeoServer to understand a Portolan catalog. It
+provisions native GeoServer catalog objects from its contents.
 
-The module adds a Web UI page, reads a Portolan registry through `portolan-java`, builds a publication plan, and creates native GeoServer stores, resources, and layers for GeoParquet, COG, and PMTiles assets.
+The module adds a Web UI page and reads a Portolan registry through
+`portolan-java`. It builds a publication plan and creates native GeoServer
+objects for GeoParquet, COG, and PMTiles assets. GeoServer Cloud uses its
+Parquetry `Parquet` store when available. Vanilla GeoServer uses the classic
+`GeoParquet` store.
 
 The module uses `portolan-java` to implement Portolan semantics and delegates actual geospatial data access to existing GeoServer/GeoTools stores.
 
@@ -283,7 +288,7 @@ Install the matching GeoServer community extension for each format that the
 server must publish:
 
 * `gs-cog-core` and `gs-cog-http` for COG over HTTP;
-* `gs-geoparquet` for GeoParquet;
+* `gs-geoparquet` for GeoParquet on vanilla GeoServer;
 * `gs-pmtiles-store` for PMTiles.
 
 The Web UI remains available when any store extension is absent. Its readiness
@@ -308,6 +313,10 @@ The `cloud` ZIP contains the two `slim` JARs and
 Boot auto-configuration. Extract this ZIP into the host directory mounted at
 `/opt/additional_libs` in the GeoServer Cloud Web UI service. Required store
 extensions must also be present in each Cloud service that uses those stores.
+GeoServer Cloud uses the Parquetry `Parquet` store for GeoParquet assets and
+falls back to the classic `GeoParquet` store when Parquetry is unavailable.
+The Compose example also aligns the Tileverse libraries required by the
+PMTiles store in the current GeoServer Cloud snapshot.
 
 Do not install `geoserver-portolan-cloud` in a vanilla GeoServer. The `slim`
 and `full` ZIPs exclude Spring Boot classes and remain the vanilla
@@ -318,8 +327,9 @@ Create a release by pushing a tag from `main`:
 ```bash
 git checkout main
 git pull --ff-only
-git tag -a v0.2.0 -m "v0.2.0"
-git push origin v0.2.0
+export RELEASE_VERSION=<version-without-v>
+git tag -a "v${RELEASE_VERSION}" -m "v${RELEASE_VERSION}"
+git push origin "v${RELEASE_VERSION}"
 ```
 
 The GitHub Actions workflow builds the module inside the GeoServer
@@ -457,7 +467,10 @@ This repository now contains the first GeoServer Web UI module skeleton:
 * `PortolanStoreReadiness` reports store availability without making optional extensions startup dependencies.
 
 GeoParquet, COG, and PMTiles are recognized as asset types. The planner marks
-an entry as unsupported when its matching GeoServer extension is absent.
+an entry as unsupported when its matching GeoServer extension is absent. In
+GeoServer Cloud, the GeoParquet handler prefers the Parquetry `Parquet` store.
+It uses the classic `GeoParquet` store in vanilla GeoServer and as a Cloud
+fallback.
 
 ## Build and integration
 

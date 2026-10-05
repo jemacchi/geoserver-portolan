@@ -48,6 +48,7 @@ Unit tests use local catalog fixtures and do not contact the public registry. Th
 
 - parsing a downloaded catalog through `portolan-java`;
 - choosing data assets and mapping their formats;
+- selecting Parquetry in GeoServer Cloud and the classic GeoParquet fallback;
 - reading collection bounding boxes;
 - creating workspaces, stores, and provenance metadata;
 - handling absent plugins and failed layer publication;

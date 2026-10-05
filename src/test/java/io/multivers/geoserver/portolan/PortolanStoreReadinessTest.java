@@ -36,6 +36,18 @@ public class PortolanStoreReadinessTest {
     }
 
     @Test
+    public void reportsParquetryAsTheCloudGeoParquetBackend() {
+        PortolanStoreReadiness readiness = new PortolanStoreReadiness(
+                name -> "Parquet".equals(name), className -> true, PortolanGeoParquetStore.parquetry());
+
+        PortolanStoreStatus status = readiness.status(PortolanResourceFormat.GEOPARQUET);
+
+        assertTrue(status.available());
+        assertEquals("Parquet (Parquetry)", status.name());
+        assertEquals("GeoServer Cloud Parquetry extension", status.installation());
+    }
+
+    @Test
     public void requiresCogCoreAndHttpSupport() {
         PortolanStoreReadiness missingCore =
                 new PortolanStoreReadiness(name -> true, className -> !className.endsWith("CogSettings"));

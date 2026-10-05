@@ -36,15 +36,29 @@ public final class PortolanProvisioner {
 
     private final Catalog catalog;
     private final BiFunction<PortolanPublicationEntry, StoreInfo, List<String>> layerPublisher;
+    private final PortolanGeoParquetStore geoParquetStore;
 
     public PortolanProvisioner(Catalog catalog) {
+        this(catalog, PortolanGeoParquetStore.detect());
+    }
+
+    PortolanProvisioner(Catalog catalog, PortolanGeoParquetStore geoParquetStore) {
         this.catalog = catalog;
         this.layerPublisher = this::publishLayers;
+        this.geoParquetStore = geoParquetStore;
     }
 
     PortolanProvisioner(Catalog catalog, BiFunction<PortolanPublicationEntry, StoreInfo, List<String>> layerPublisher) {
+        this(catalog, layerPublisher, PortolanGeoParquetStore.detect());
+    }
+
+    PortolanProvisioner(
+            Catalog catalog,
+            BiFunction<PortolanPublicationEntry, StoreInfo, List<String>> layerPublisher,
+            PortolanGeoParquetStore geoParquetStore) {
         this.catalog = catalog;
         this.layerPublisher = layerPublisher;
+        this.geoParquetStore = geoParquetStore;
     }
 
     public PortolanProvisionResult provision(PortolanPublicationPlan plan) {
@@ -111,14 +125,11 @@ public final class PortolanProvisioner {
         CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.setWorkspace(workspace);
         DataStoreInfo store = builder.buildDataStore(entry.storeName());
-        store.setType(PortolanStoreReadiness.GEOPARQUET_TYPE);
         store.setDescription("Portolan collection " + entry.collectionId());
-        store.getConnectionParameters().put("dbtype", "geoparquet");
-        store.getConnectionParameters().put("uri", entry.href().toString());
-        store.getConnectionParameters().put("namespace", namespace(workspace));
+        geoParquetStore.configure(store, entry.href(), namespace(workspace));
         tagStore(plan, entry, store);
         catalog.add(store);
-        LOGGER.info(() -> "Created GeoParquet store " + store.getName() + " from " + entry.href());
+        LOGGER.info(() -> "Created " + store.getType() + " store " + store.getName() + " from " + entry.href());
         return store;
     }
 

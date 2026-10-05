@@ -26,6 +26,23 @@ The Portolan `cloud` ZIP does not contain GeoParquet, COG, or PMTiles store
 implementations. Enable those extensions in each Cloud service that loads the
 corresponding catalog objects.
 
+## GeoParquet backend
+
+Portolan keeps GeoParquet as the catalog asset format in every deployment.
+The GeoServer store implementation depends on the runtime:
+
+- GeoServer Cloud uses the `Parquet` store from Parquetry when its factory is
+  available.
+- Vanilla GeoServer uses the `GeoParquet` store from `gs-geoparquet`.
+- GeoServer Cloud falls back to `GeoParquet` when Parquetry is unavailable.
+
+The Parquetry store receives the asset URL through its `geoparquet`
+connection parameter. The classic store keeps its `dbtype` and `uri`
+parameters. Existing stores keep their original type.
+
+The Portolan readiness panel reports `Parquet (Parquetry)` when the Cloud
+backend is active.
+
 ## Install with a host directory
 
 Download the `cloud` ZIP for your GeoServer version. Extract it into a host
@@ -88,8 +105,14 @@ docker compose \
 ```
 
 The `portolan-libs-init` service removes older Portolan JARs from its volume.
-It does not remove unrelated additional libraries. Compose waits for this
-service to complete before it starts `webui`.
+It also installs the Tileverse `2.1-M2` libraries required by the PMTiles
+store in the current GeoServer Cloud snapshot. Compose waits for this service
+to complete before it starts `webui`.
+
+The GeoServer Cloud image already contains `gs-pmtiles-store`. Its
+`gt-pmtiles` dependency uses the Tileverse `2.1-M2` API. The override keeps
+those libraries aligned and prevents a `NoSuchFieldError` during factory
+discovery.
 
 Use the same override on every start. Omitting it creates a different Compose
 model and leaves the Web UI without the named volume.
@@ -126,7 +149,11 @@ Check the one-shot Compose service and the Web UI logs:
 ```bash
 docker compose logs portolan-libs-init
 docker compose logs webui | grep -i portolan
+docker compose logs webui | grep 'factory enabled: PMTiles'
 ```
+
+The final command must report
+`org.geotools.pmtiles.store.PMTilesDataStoreFactory`.
 
 To inspect the Spring Boot classpath, add `-Dloader.debug=true` to `JAVA_OPTS`
 for `webui`, then recreate that service.

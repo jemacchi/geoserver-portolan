@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.multivers.geoserver.portolan.PortolanGeoParquetStore;
 import io.multivers.geoserver.portolan.PortolanPlanAction;
 import io.multivers.geoserver.portolan.PortolanProvisionResult;
 import io.multivers.geoserver.portolan.PortolanPublicationEntry;
@@ -73,8 +74,8 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
 
     @Test
     public void rendersStoreReadinessAndInstallationInstructions() {
-        PortolanStoreReadiness readiness =
-                new PortolanStoreReadiness(name -> !"PMTiles".equals(name), className -> true);
+        PortolanStoreReadiness readiness = new PortolanStoreReadiness(
+                name -> !"PMTiles".equals(name), className -> true, PortolanGeoParquetStore.classic());
 
         String rendered = PortolanPage.renderReadiness(readiness);
 

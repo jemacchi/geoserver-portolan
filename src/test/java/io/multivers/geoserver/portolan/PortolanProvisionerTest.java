@@ -160,6 +160,35 @@ public class PortolanProvisionerTest {
     }
 
     @Test
+    public void createsParquetryStoreWithItsNativeConnectionContract() {
+        Catalog catalog = new CatalogImpl();
+        PortolanPublicationPlan plan = plan(List.of(entry(
+                "roads",
+                PortolanResourceFormat.GEOPARQUET,
+                URI.create("https://example.test/roads.parquet"),
+                PortolanPlanAction.CREATE,
+                null)));
+
+        new PortolanProvisioner(
+                        catalog,
+                        (entry, store) -> List.of("  created layer: target:" + entry.layerName()),
+                        PortolanGeoParquetStore.parquetry())
+                .provision(plan);
+
+        WorkspaceInfo workspace = catalog.getWorkspaceByName("target");
+        DataStoreInfo store = catalog.getDataStoreByName(workspace, "roads");
+        assertEquals("Parquet", store.getType());
+        assertEquals(
+                "https://example.test/roads.parquet",
+                store.getConnectionParameters().get("geoparquet"));
+        assertEquals(
+                "https://www.portolan-sdi.org/ns/target",
+                store.getConnectionParameters().get("namespace"));
+        assertFalse(store.getConnectionParameters().containsKey("dbtype"));
+        assertFalse(store.getConnectionParameters().containsKey("uri"));
+    }
+
+    @Test
     public void reusesExistingStoreAndExistingWorkspace() {
         Catalog catalog = new CatalogImpl();
         WorkspaceInfo workspace = catalog.getFactory().createWorkspace();

@@ -22,7 +22,7 @@ public final class PortolanRegistryFacade {
     public PortolanRegistryFacade(Catalog catalog, PortolanStoreReadiness readiness) {
         this(
                 new PortolanPlanner(catalog, readiness),
-                new PortolanProvisioner(catalog)::provision,
+                new PortolanProvisioner(catalog, readiness.geoParquetStore())::provision,
                 new PortolanJavaRegistryAccess());
     }
 

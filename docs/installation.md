@@ -4,7 +4,9 @@ Use a Portolan release built for the same GeoServer version as the target
 server. Do not mix extension and server versions.
 
 The `full` ZIP contains Portolan and the GeoParquet, COG HTTP, and PMTiles
-store assemblies. Use the `slim` ZIP when those stores are already installed.
+store assemblies for vanilla GeoServer. Use the `slim` ZIP when those stores
+are already installed. GeoServer Cloud uses the separate `cloud` ZIP and
+prefers its Parquetry `Parquet` store for GeoParquet assets.
 
 ## Install into an existing server
 
