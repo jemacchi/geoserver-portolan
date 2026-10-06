@@ -53,18 +53,26 @@ mkdir -p additional-libs/portolan
 unzip geoserver-portolan-*-cloud.zip -d additional-libs/portolan
 ```
 
-Mount the directory at `/opt/additional_libs` in the Web UI service:
+Mount the directory at `/opt/additional_libs` in every GeoServer service. Each
+service loads the shared catalog and must recognize its store types:
 
 ```yaml
 services:
   webui:
     volumes:
       - ./additional-libs/portolan:/opt/additional_libs:ro
+  wms:
+    volumes:
+      - ./additional-libs/portolan:/opt/additional_libs:ro
+  wfs:
+    volumes:
+      - ./additional-libs/portolan:/opt/additional_libs:ro
+# Repeat the same mount for wcs, wps, restconfig, and gwc.
 ```
 
-Mount the same libraries in another GeoServer service when that service needs
-the module classes. Keep the classpath consistent across replicas of one
-service.
+Keep the classpath consistent across all replicas. Mounting the libraries only
+in `webui` lets Portolan create catalog entries, but service requests then fail
+because `wms` or `wfs` cannot open their stores.
 
 GeoParquet, COG, and PMTiles remain separate GeoServer extensions. Enable each
 store extension in every service that reads its catalog objects. The Portolan
@@ -73,8 +81,8 @@ page reports which store extension is missing.
 Restart the affected services after you change the mounted JARs:
 
 ```bash
-docker compose up -d --force-recreate webui
-docker compose logs -f webui
+docker compose up -d --force-recreate webui wms wfs wcs wps restconfig gwc
+docker compose logs -f webui wms wfs
 ```
 
 Add `-Dloader.debug=true` to `JAVA_OPTS` when you need to inspect additional
@@ -84,7 +92,7 @@ library loading.
 
 The example [Compose override](../examples/geoserver-cloud/compose.portolan.yml)
 uses a one-shot service. It extracts a local `cloud` ZIP into a named volume
-before the Web UI starts.
+before the GeoServer services start.
 
 Download the release asset and set its absolute path:
 
@@ -107,7 +115,7 @@ docker compose \
 The `portolan-libs-init` service removes older Portolan JARs from its volume.
 It also installs the Tileverse `2.1-M2` libraries required by the PMTiles
 store in the current GeoServer Cloud snapshot. Compose waits for this service
-to complete before it starts `webui`.
+to complete before it starts the GeoServer services.
 
 The GeoServer Cloud image already contains `gs-pmtiles-store`. Its
 `gt-pmtiles` dependency uses the Tileverse `2.1-M2` API. The override keeps

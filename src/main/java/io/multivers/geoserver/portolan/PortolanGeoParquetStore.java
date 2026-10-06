@@ -66,6 +66,9 @@ public final class PortolanGeoParquetStore {
         }
         store.getConnectionParameters().put(hrefParameter, href.toString());
         store.getConnectionParameters().put("namespace", namespace);
+        if (this == PARQUETRY) {
+            PortolanStorageParameters.configurePublicAwsS3(store, href);
+        }
     }
 
     static boolean hasDataStoreFactory(String displayName) {

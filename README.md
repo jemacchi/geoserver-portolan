@@ -311,8 +311,8 @@ already installed and managed separately. The `full` ZIP can exceed 150 MiB.
 The `cloud` ZIP contains the two `slim` JARs and
 `geoserver-portolan-cloud`. The third JAR registers the module through Spring
 Boot auto-configuration. Extract this ZIP into the host directory mounted at
-`/opt/additional_libs` in the GeoServer Cloud Web UI service. Required store
-extensions must also be present in each Cloud service that uses those stores.
+`/opt/additional_libs` in every GeoServer Cloud service. Every service loads the
+shared catalog and must recognize its store types.
 GeoServer Cloud uses the Parquetry `Parquet` store for GeoParquet assets and
 falls back to the classic `GeoParquet` store when Parquetry is unavailable.
 The Compose example also aligns the Tileverse libraries required by the

@@ -23,6 +23,8 @@ import org.geotools.api.coverage.grid.GridCoverageReader;
 import org.geotools.api.data.DataAccess;
 import org.geotools.api.feature.Feature;
 import org.geotools.api.feature.type.FeatureType;
+import org.geotools.api.feature.type.Name;
+import org.geotools.feature.NameImpl;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.junit.Test;
@@ -152,6 +154,7 @@ public class PortolanProvisionerTest {
         assertEquals(
                 "https://example.test/map.pmtiles",
                 pmtiles.getConnectionParameters().get("pmtiles"));
+        assertFalse(pmtiles.getConnectionParameters().containsKey("storage.s3.anonymous"));
         assertStoreMetadata(geoParquet, "roads", "https://example.test/roads.parquet");
         assertStoreMetadata(cog, "imagery", "https://example.test/image.tif");
         assertStoreMetadata(pmtiles, "tiles", "https://example.test/map.pmtiles");
@@ -186,6 +189,94 @@ public class PortolanProvisionerTest {
                 store.getConnectionParameters().get("namespace"));
         assertFalse(store.getConnectionParameters().containsKey("dbtype"));
         assertFalse(store.getConnectionParameters().containsKey("uri"));
+        assertFalse(store.getConnectionParameters().containsKey("storage.s3.anonymous"));
+    }
+
+    @Test
+    public void configuresAnonymousAccessForPublicAwsS3Assets() {
+        Catalog catalog = new CatalogImpl();
+        PortolanPublicationPlan plan = plan(List.of(
+                entry(
+                        "bathymetry",
+                        PortolanResourceFormat.GEOPARQUET,
+                        URI.create("https://overturemaps-us-west-2.s3.us-west-2.amazonaws.com/release/data.parquet"),
+                        PortolanPlanAction.CREATE,
+                        null),
+                entry(
+                        "address",
+                        PortolanResourceFormat.PMTILES,
+                        URI.create(
+                                "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/addresses.pmtiles"),
+                        PortolanPlanAction.CREATE,
+                        null)));
+
+        new PortolanProvisioner(
+                        catalog,
+                        (entry, store) -> List.of("  created layer: target:" + entry.layerName()),
+                        PortolanGeoParquetStore.parquetry())
+                .provision(plan);
+
+        WorkspaceInfo workspace = catalog.getWorkspaceByName("target");
+        DataStoreInfo parquet = catalog.getDataStoreByName(workspace, "bathymetry");
+        DataStoreInfo pmtiles = catalog.getDataStoreByName(workspace, "address");
+        assertEquals(Boolean.TRUE, parquet.getConnectionParameters().get("storage.s3.anonymous"));
+        assertEquals(Boolean.TRUE, pmtiles.getConnectionParameters().get("storage.s3.anonymous"));
+    }
+
+    @Test
+    public void repairsAnonymousAccessOnExistingPublicAwsS3Store() {
+        Catalog catalog = new CatalogImpl();
+        WorkspaceInfo workspace = catalog.getFactory().createWorkspace();
+        workspace.setName("target");
+        catalog.add(workspace);
+        DataStoreInfo existing = catalog.getFactory().createDataStore();
+        existing.setName("address");
+        existing.setWorkspace(workspace);
+        existing.setType("PMTiles");
+        catalog.add(existing);
+
+        new PortolanProvisioner(catalog, (entry, store) -> List.of("  layer exists: target:address"))
+                .provision(plan(List.of(entry(
+                        "address",
+                        PortolanResourceFormat.PMTILES,
+                        URI.create(
+                                "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/addresses.pmtiles"),
+                        PortolanPlanAction.EXISTS,
+                        null))));
+
+        assertEquals(Boolean.TRUE, existing.getConnectionParameters().get("storage.s3.anonymous"));
+    }
+
+    @Test
+    public void selectsMatchingNativeFeatureTypeFromSharedStore() {
+        PortolanProvisioner provisioner = new PortolanProvisioner(null);
+        PortolanPublicationEntry entry = entry(
+                "land",
+                PortolanResourceFormat.PMTILES,
+                URI.create("https://example.test/base.pmtiles"),
+                PortolanPlanAction.CREATE,
+                null);
+        List<Name> names = List.of(new NameImpl("bathymetry"), new NameImpl("land"), new NameImpl("water"));
+
+        assertEquals(
+                List.of("land"),
+                provisioner.nativeFeatureNames(entry, names).stream()
+                        .map(Name::getLocalPart)
+                        .toList());
+    }
+
+    @Test
+    public void keepsAllNativeFeatureTypesWhenNoneMatchesCollection() {
+        PortolanProvisioner provisioner = new PortolanProvisioner(null);
+        PortolanPublicationEntry entry = entry(
+                "basemap",
+                PortolanResourceFormat.PMTILES,
+                URI.create("https://example.test/base.pmtiles"),
+                PortolanPlanAction.CREATE,
+                null);
+        List<Name> names = List.of(new NameImpl("land"), new NameImpl("water"));
+
+        assertEquals(names, provisioner.nativeFeatureNames(entry, names));
     }
 
     @Test

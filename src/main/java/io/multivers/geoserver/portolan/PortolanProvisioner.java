@@ -105,6 +105,7 @@ public final class PortolanProvisioner {
         }
         StoreInfo existing = catalog.getStoreByName(workspace, entry.storeName(), StoreInfo.class);
         if (existing != null) {
+            repairPublicAwsS3Access(entry, existing);
             LOGGER.info(() -> "Reusing existing store " + existing.getName());
             return existing;
         }
@@ -118,6 +119,19 @@ public final class PortolanProvisioner {
             return createPmtilesStore(plan, entry, workspace);
         }
         return null;
+    }
+
+    private void repairPublicAwsS3Access(PortolanPublicationEntry entry, StoreInfo store) {
+        if (!(store instanceof DataStoreInfo dataStore)) {
+            return;
+        }
+        boolean tileverseStore = entry.format() == PortolanResourceFormat.PMTILES
+                || (entry.format() == PortolanResourceFormat.GEOPARQUET
+                        && PortolanGeoParquetStore.parquetry().type().equalsIgnoreCase(dataStore.getType()));
+        if (tileverseStore && PortolanStorageParameters.configurePublicAwsS3(dataStore, entry.href())) {
+            catalog.save(dataStore);
+            LOGGER.info(() -> "Enabled anonymous access for public AWS S3 store " + dataStore.getName());
+        }
     }
 
     private DataStoreInfo createGeoParquetStore(
@@ -142,6 +156,7 @@ public final class PortolanProvisioner {
         store.setDescription("Portolan collection " + entry.collectionId());
         store.getConnectionParameters().put("pmtiles", entry.href().toString());
         store.getConnectionParameters().put("namespace", namespace(workspace));
+        PortolanStorageParameters.configurePublicAwsS3(store, entry.href());
         tagStore(plan, entry, store);
         catalog.add(store);
         LOGGER.info(() -> "Created PMTiles store " + store.getName() + " from " + entry.href());
@@ -182,7 +197,7 @@ public final class PortolanProvisioner {
 
     private List<String> publishFeatureLayers(PortolanPublicationEntry entry, DataStoreInfo store) throws Exception {
         DataAccess<? extends FeatureType, ? extends Feature> dataAccess = store.getDataStore(null);
-        List<Name> names = dataAccess.getNames();
+        List<Name> names = nativeFeatureNames(entry, dataAccess.getNames());
         if (names.isEmpty()) {
             LOGGER.info(() -> "Store " + store.getName() + " has no feature type names");
             return List.of("  no feature types found");
@@ -209,6 +224,14 @@ public final class PortolanProvisioner {
             messages.add(publishLayer(resource, layerName));
         }
         return messages;
+    }
+
+    List<Name> nativeFeatureNames(PortolanPublicationEntry entry, List<Name> names) {
+        List<Name> matches = names.stream()
+                .filter(name ->
+                        PortolanPlanner.geoserverName(name.getLocalPart()).equals(entry.layerName()))
+                .toList();
+        return matches.isEmpty() ? names : matches;
     }
 
     private List<String> publishCoverageLayers(PortolanPublicationEntry entry, CoverageStoreInfo store)
