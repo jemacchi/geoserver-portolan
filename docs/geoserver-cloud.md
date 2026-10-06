@@ -22,9 +22,9 @@ Portolan module are present. It also requires
 Use the `cloud` ZIP. Do not use the `full` ZIP in `/opt/additional_libs`.
 GeoServer Cloud images manage their store extensions separately.
 
-The Portolan `cloud` ZIP does not contain GeoParquet, COG, or PMTiles store
-implementations. Enable those extensions in each Cloud service that loads the
-corresponding catalog objects.
+The Portolan `cloud` ZIP does not contain GeoParquet, COG, PMTiles, or Tileverse
+implementations. Enable the store extensions in each Cloud service that loads
+the corresponding catalog objects.
 
 ## GeoParquet backend
 
@@ -113,10 +113,14 @@ docker compose \
 ```
 
 The `portolan-libs-init` service removes older Portolan JARs from its volume.
-It also removes Tileverse JARs left by older versions of this example. The
-GeoServer Cloud images provide the compatible Tileverse libraries for
-Parquetry and PMTiles. Compose waits for the init service to complete before it
-starts the GeoServer services.
+It also removes Tileverse JARs left by older versions of this example. It then
+installs only the M2 S3 and GCS providers required by `gt-pmtiles` in the
+current GeoServer Cloud snapshot. The image continues to provide
+`tileverse-storage-core` and the other shared libraries required by Parquetry.
+Compose waits for the init service before it starts the GeoServer services.
+
+Do not add `tileverse-storage-core` to `/opt/additional_libs`. Its M2
+`RangeReader` API is not compatible with the Parquetry version in these images.
 
 Use the same override on every start. Omitting it creates a different Compose
 model and leaves the Web UI without the named volume.

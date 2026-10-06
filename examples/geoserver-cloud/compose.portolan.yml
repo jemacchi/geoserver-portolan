@@ -10,6 +10,8 @@ services:
   portolan-libs-init:
     image: alpine:3.24.0
     user: root
+    environment:
+      TILEVERSE_PROVIDER_VERSION: ${TILEVERSE_PROVIDER_VERSION:-2.1-M2}
     volumes:
       - ${PORTOLAN_CLOUD_ZIP:?Set PORTOLAN_CLOUD_ZIP}:/bundle/portolan.zip:ro
       - portolan_additional_libs:/opt/additional_libs
@@ -17,7 +19,7 @@ services:
       - /bin/sh
       - -ec
       - |
-        apk add --no-cache unzip
+        apk add --no-cache curl unzip
         find /opt/additional_libs -maxdepth 1 -type f \
           \( \
             -name 'geoserver-portolan-*.jar' -o \
@@ -26,6 +28,15 @@ services:
           \) \
           -delete
         unzip -jo /bundle/portolan.zip '*.jar' -d /opt/additional_libs
+        for artifact_path in \
+          storage/tileverse-storage-gcs \
+          storage/tileverse-storage-s3
+        do
+          artifact="$${artifact_path##*/}"
+          curl --fail --location --retry 3 \
+            "https://repo1.maven.org/maven2/io/tileverse/$${artifact_path}/$${TILEVERSE_PROVIDER_VERSION}/$${artifact}-$${TILEVERSE_PROVIDER_VERSION}.jar" \
+            --output "/opt/additional_libs/$${artifact}-$${TILEVERSE_PROVIDER_VERSION}.jar"
+        done
         chmod 0444 /opt/additional_libs/*.jar
     restart: "no"
 
