@@ -113,14 +113,10 @@ docker compose \
 ```
 
 The `portolan-libs-init` service removes older Portolan JARs from its volume.
-It also installs the Tileverse `2.1-M2` libraries required by the PMTiles
-store in the current GeoServer Cloud snapshot. Compose waits for this service
-to complete before it starts the GeoServer services.
-
-The GeoServer Cloud image already contains `gs-pmtiles-store`. Its
-`gt-pmtiles` dependency uses the Tileverse `2.1-M2` API. The override keeps
-those libraries aligned and prevents a `NoSuchFieldError` during factory
-discovery.
+It also removes Tileverse JARs left by older versions of this example. The
+GeoServer Cloud images provide the compatible Tileverse libraries for
+Parquetry and PMTiles. Compose waits for the init service to complete before it
+starts the GeoServer services.
 
 Use the same override on every start. Omitting it creates a different Compose
 model and leaves the Web UI without the named volume.

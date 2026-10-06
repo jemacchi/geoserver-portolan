@@ -101,6 +101,10 @@ if [[ "$cloud_jar_count" -ne 3 ]]; then
   echo "Cloud archive must contain exactly three JARs, found $cloud_jar_count" >&2
   exit 1
 fi
+if unzip -Z1 "$cloud_zip" | grep -Eq '(^|/)tileverse-.*\.jar$'; then
+  echo "Cloud archive must not override GeoServer Cloud Tileverse libraries" >&2
+  exit 1
+fi
 if [[ "$(stat -c %s "$cloud_zip")" -gt 5242880 ]]; then
   echo "Cloud archive exceeds the 5 MiB release limit" >&2
   exit 1

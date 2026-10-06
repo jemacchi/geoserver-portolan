@@ -315,8 +315,8 @@ Boot auto-configuration. Extract this ZIP into the host directory mounted at
 shared catalog and must recognize its store types.
 GeoServer Cloud uses the Parquetry `Parquet` store for GeoParquet assets and
 falls back to the classic `GeoParquet` store when Parquetry is unavailable.
-The Compose example also aligns the Tileverse libraries required by the
-PMTiles store in the current GeoServer Cloud snapshot.
+The cloud distribution does not include Tileverse libraries. GeoServer Cloud
+provides the versions required by its Parquetry and PMTiles extensions.
 
 Do not install `geoserver-portolan-cloud` in a vanilla GeoServer. The `slim`
 and `full` ZIPs exclude Spring Boot classes and remain the vanilla

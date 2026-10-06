@@ -126,6 +126,9 @@ jobs:
             dist "${store_zips[@]}"
           ls -lh dist/*.zip
 
+      - name: Test GeoServer Cloud distribution
+        run: bash geoserver-portolan/scripts/test-cloud-distribution.sh
+
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
