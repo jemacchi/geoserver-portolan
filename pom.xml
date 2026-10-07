@@ -55,7 +55,7 @@
     <dependency>
       <groupId>org.portolan</groupId>
       <artifactId>portolan-java</artifactId>
-      <version>0.1.2</version>
+      <version>0.1.3</version>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
