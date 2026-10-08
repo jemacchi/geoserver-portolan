@@ -49,7 +49,7 @@ The module depends on:
 ```xml
 <groupId>org.portolan</groupId>
 <artifactId>portolan-java</artifactId>
-<version>0.1.3</version>
+<version>0.1.4</version>
 ```
 
 Install `portolan-java` locally before building GeoServer if the artifact is
@@ -57,7 +57,7 @@ not available from a Maven repository:
 
 ```bash
 cd /home/jmacchi/prg/jemacchi/portolan/portolan-java
-git checkout v0.1.3
-mvn versions:set -DnewVersion=0.1.3 -DgenerateBackupPoms=false
+git checkout v0.1.4
+mvn versions:set -DnewVersion=0.1.4 -DgenerateBackupPoms=false
 mvn install
 ```
