@@ -4,6 +4,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -71,24 +76,38 @@ public class PortolanRegistryFacadeTest {
     }
 
     @Test
-    public void defaultAdapterReadsAndDownloadsLocalRegistryCatalog() throws Exception {
-        Path source = temporaryFolder.newFolder().toPath();
-        Path catalog = source.resolve("catalog.json");
-        Files.writeString(catalog, "{\"type\":\"Catalog\",\"stac_version\":\"1.1.0\",\"id\":\"local\",\"links\":[]}");
-        Path registry = source.resolve("registry.json");
-        Files.writeString(
-                registry,
-                "{\"links\":[{\"rel\":\"child\",\"href\":\"" + catalog.toUri()
-                        + "\",\"portolan_registry:id\":\"local\","
-                        + "\"portolan_registry:status\":\"valid\",\"title\":\"Local\"}]}");
-        PortolanRegistryFacade facade = new PortolanRegistryFacade(new CatalogImpl());
+    public void defaultAdapterReadsAndDownloadsHttpRegistryCatalog() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/catalog.json", exchange -> respond(
+                exchange,
+                "{\"type\":\"Catalog\",\"stac_version\":\"1.1.0\",\"id\":\"local\",\"links\":[]}"));
+        server.createContext("/registry.json", exchange -> respond(
+                exchange,
+                "{\"links\":[{\"rel\":\"child\",\"href\":\"/catalog.json\","
+                        + "\"portolan_registry:id\":\"local\","
+                        + "\"portolan_registry:status\":\"valid\",\"title\":\"Local\"}]}"));
+        server.start();
+        try {
+            String registryUrl = "http://127.0.0.1:" + server.getAddress().getPort() + "/registry.json";
+            PortolanRegistryFacade facade = new PortolanRegistryFacade(new CatalogImpl());
 
-        assertEquals(
-                "local", facade.listCatalogs(registry.toUri().toString()).get(0).id());
-        PortolanPublicationPlan plan =
-                facade.planRegistryCatalog(registry.toUri().toString(), "local", "target");
-        assertEquals("local", plan.catalogId());
-        assertEquals("target", plan.workspace());
+            assertEquals("local", facade.listCatalogs(registryUrl).get(0).id());
+            PortolanPublicationPlan plan =
+                    facade.planRegistryCatalog(registryUrl, "local", "target");
+            assertEquals("local", plan.catalogId());
+            assertEquals("target", plan.workspace());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    private static void respond(HttpExchange exchange, String content) throws IOException {
+        byte[] body = content.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, body.length);
+        try (var response = exchange.getResponseBody()) {
+            response.write(body);
+        }
     }
 
     private PortolanRegistryFacade facade(
