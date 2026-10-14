@@ -82,7 +82,12 @@ final class PortolanStyleImporter {
             }
             List<Exception> errors = handler.validate(content, null, null);
             if (!errors.isEmpty()) {
-                throw new IllegalArgumentException("MBStyle validation failed: " + safeMessage(errors.get(0)));
+                return result(
+                        entry,
+                        layer,
+                        styleName(selected, layer),
+                        PortolanStyleResultStatus.SKIPPED_UNSUPPORTED,
+                        "MBStyle is not supported by the installed parser: " + safeMessage(errors.get(0)));
             }
             handler.parse(content, null, null, null);
             return persist(entry, workspace, layer, selected, styleName(selected, layer), content, handler);
@@ -158,12 +163,16 @@ final class PortolanStyleImporter {
     }
 
     private void assign(LayerInfo layer, StyleInfo style) {
-        StyleInfo previous = layer.getDefaultStyle();
-        layer.setDefaultStyle(style);
+        LayerInfo managedLayer = layer.getId() == null ? null : catalog.getLayer(layer.getId());
+        if (managedLayer == null) {
+            managedLayer = layer;
+        }
+        StyleInfo previous = managedLayer.getDefaultStyle();
+        managedLayer.setDefaultStyle(style);
         try {
-            catalog.save(layer);
+            catalog.save(managedLayer);
         } catch (RuntimeException exception) {
-            layer.setDefaultStyle(previous);
+            managedLayer.setDefaultStyle(previous);
             throw exception;
         }
     }

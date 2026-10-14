@@ -67,6 +67,24 @@ public class PortolanStyleImporterTest {
     }
 
     @Test
+    public void assignsTheStyleToTheCatalogManagedLayer() {
+        CatalogFixture fixture = catalogFixture(null);
+        LayerInfo created = layer();
+        LayerInfo managed = layer();
+        when(created.getId()).thenReturn("layer-id");
+        when(fixture.catalog.getLayer("layer-id")).thenReturn(managed);
+
+        PortolanStyleResult result = new PortolanStyleImporter(
+                        fixture.catalog, new PortolanStyleReadiness(() -> List.of(fixture.handler)), uri -> STYLE_JSON)
+                .importDefaultStyle(entry(), fixture.workspace, created);
+
+        assertEquals(PortolanStyleResultStatus.IMPORTED, result.status());
+        verify(managed).setDefaultStyle(fixture.style);
+        verify(fixture.catalog).save(managed);
+        verify(created, never()).setDefaultStyle(any());
+    }
+
+    @Test
     public void reusesUnchangedManagedStyleWithoutWritingItAgain() throws Exception {
         StyleInfo existing = mock(StyleInfo.class);
         MetadataMap metadata = new MetadataMap();
@@ -220,7 +238,7 @@ public class PortolanStyleImporterTest {
     }
 
     @Test
-    public void reportsRetrievalAndMbStyleParserFailuresWithoutChangingTheLayer() throws Exception {
+    public void reportsRetrievalAndSkipsUnsupportedMbStyleWithoutChangingTheLayer() throws Exception {
         CatalogFixture fixture = catalogFixture(null);
         LayerInfo layer = layer();
         PortolanStyleImporter unreachable = new PortolanStyleImporter(
@@ -237,7 +255,7 @@ public class PortolanStyleImporterTest {
 
         assertEquals(PortolanStyleResultStatus.FAILED, unreachableResult.status());
         assertTrue(unreachableResult.reason().contains("unavailable"));
-        assertEquals(PortolanStyleResultStatus.FAILED, rejectedResult.status());
+        assertEquals(PortolanStyleResultStatus.SKIPPED_UNSUPPORTED, rejectedResult.status());
         assertTrue(rejectedResult.reason().contains("unsupported expression"));
         verify(layer, never()).setDefaultStyle(any());
     }
