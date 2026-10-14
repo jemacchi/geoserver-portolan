@@ -21,7 +21,9 @@ import org.geotools.api.data.DataAccess;
 import org.geotools.api.feature.Feature;
 import org.geotools.api.feature.type.FeatureType;
 import org.geotools.api.feature.type.Name;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.logging.Logging;
 
@@ -293,7 +295,17 @@ public final class PortolanProvisioner {
 
     private boolean ensureBounds(PortolanPublicationEntry entry, CatalogBuilder builder, ResourceInfo resource) {
         try {
+            if (nativeBoundsCrsMismatch(resource)) {
+                resource.setNativeBoundingBox(null);
+                resource.setLatLonBoundingBox(null);
+                LOGGER.info(() -> "Recalculating bounds stored with the wrong CRS for Portolan resource "
+                        + resourceName(resource));
+            }
             builder.setupBounds(resource);
+            if (hasUsableBounds(resource)) {
+                LOGGER.info(() -> "Using datastore bounds for Portolan resource " + resourceName(resource));
+                return true;
+            }
         } catch (Exception exception) {
             LOGGER.log(
                     Level.INFO,
@@ -304,20 +316,31 @@ public final class PortolanProvisioner {
     }
 
     boolean applyPortolanBounds(PortolanPublicationEntry entry, ResourceInfo resource) {
+        if (hasUsableBounds(resource)) {
+            return false;
+        }
         double[] bbox = entry.bbox();
         if (bbox == null) {
             LOGGER.info(() -> "No Portolan bbox available for resource " + resourceName(resource));
             return false;
         }
-        ReferencedEnvelope envelope =
-                new ReferencedEnvelope(bbox[0], bbox[2], bbox[1], bbox[3], DefaultGeographicCRS.WGS84);
-        resource.setNativeBoundingBox(envelope);
-        resource.setLatLonBoundingBox(envelope);
-        if (resource.getSRS() == null || resource.getSRS().isBlank()) {
-            resource.setSRS("EPSG:4326");
-        }
-        if (resource.getNativeCRS() == null) {
-            resource.setNativeCRS(DefaultGeographicCRS.WGS84);
+        double west = bbox[0] <= bbox[2] ? bbox[0] : -180.0;
+        double east = bbox[0] <= bbox[2] ? bbox[2] : 180.0;
+        ReferencedEnvelope geographic =
+                new ReferencedEnvelope(west, east, bbox[1], bbox[3], DefaultGeographicCRS.WGS84);
+        try {
+            CoordinateReferenceSystem nativeCrs = nativeCrs(resource);
+            ReferencedEnvelope nativeBounds = CRS.equalsIgnoreMetadata(nativeCrs, DefaultGeographicCRS.WGS84)
+                    ? geographic
+                    : geographic.transform(nativeCrs, true);
+            resource.setNativeBoundingBox(nativeBounds);
+            resource.setLatLonBoundingBox(geographic);
+        } catch (Exception exception) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "Could not transform Portolan bounds for resource " + resourceName(resource),
+                    exception);
+            return false;
         }
         LOGGER.info(() -> "Applied Portolan bbox ["
                 + bbox[0]
@@ -330,6 +353,50 @@ public final class PortolanProvisioner {
                 + "] to resource "
                 + resourceName(resource));
         return true;
+    }
+
+    private CoordinateReferenceSystem nativeCrs(ResourceInfo resource) throws Exception {
+        CoordinateReferenceSystem nativeCrs = resource.getNativeCRS();
+        if (nativeCrs != null) {
+            return nativeCrs;
+        }
+        String srs = resource.getSRS();
+        if (srs != null && !srs.isBlank()) {
+            nativeCrs = CRS.decode(srs, true);
+        } else {
+            nativeCrs = DefaultGeographicCRS.WGS84;
+            resource.setSRS("EPSG:4326");
+        }
+        resource.setNativeCRS(nativeCrs);
+        return nativeCrs;
+    }
+
+    private boolean hasUsableBounds(ResourceInfo resource) {
+        ReferencedEnvelope nativeBounds = resource.getNativeBoundingBox();
+        if (!isUsable(nativeBounds) || !isUsable(resource.getLatLonBoundingBox())) {
+            return false;
+        }
+        return !nativeBoundsCrsMismatch(resource);
+    }
+
+    private boolean nativeBoundsCrsMismatch(ResourceInfo resource) {
+        ReferencedEnvelope nativeBounds = resource.getNativeBoundingBox();
+        if (nativeBounds == null) {
+            return false;
+        }
+        CoordinateReferenceSystem boundsCrs = nativeBounds.getCoordinateReferenceSystem();
+        CoordinateReferenceSystem nativeCrs = resource.getNativeCRS();
+        return boundsCrs != null && nativeCrs != null && !CRS.equalsIgnoreMetadata(boundsCrs, nativeCrs);
+    }
+
+    private boolean isUsable(ReferencedEnvelope envelope) {
+        return envelope != null
+                && Double.isFinite(envelope.getMinX())
+                && Double.isFinite(envelope.getMinY())
+                && Double.isFinite(envelope.getMaxX())
+                && Double.isFinite(envelope.getMaxY())
+                && envelope.getMinX() <= envelope.getMaxX()
+                && envelope.getMinY() <= envelope.getMaxY();
     }
 
     private String resourceName(ResourceInfo resource) {

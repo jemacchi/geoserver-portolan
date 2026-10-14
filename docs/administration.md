@@ -119,7 +119,11 @@ All distributions require the GeoServer version used to build the release.
 Stop vanilla GeoServer before you extract `slim` or `full` into `WEB-INF/lib`.
 Mount the extracted `cloud` files in the GeoServer Cloud Web UI service.
 
-When a collection provides a spatial bounding box, the module applies it as the native and geographic bounds. It uses `EPSG:4326` when the resource has no declared CRS.
+The module first asks the datastore to calculate native and geographic bounds.
+It preserves those values when both are available. Otherwise, it uses the
+collection bbox as a fallback. The fallback transforms WGS84 coordinates into
+the native CRS. A bbox that crosses the antimeridian expands to the full
+longitude range required by GeoServer.
 
 ## Provenance
 

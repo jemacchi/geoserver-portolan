@@ -28,6 +28,7 @@ import org.geotools.api.feature.type.FeatureType;
 import org.geotools.api.feature.type.Name;
 import org.geotools.feature.NameImpl;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.junit.Test;
 
@@ -47,17 +48,36 @@ public class PortolanProvisionerTest {
     }
 
     @Test
-    public void overwritesExistingBoundsWithPortolanBounds() {
+    public void preservesBoundsCalculatedByTheStore() throws Exception {
         PortolanProvisioner provisioner = new PortolanProvisioner(null);
         FeatureTypeInfoImpl resource = new FeatureTypeInfoImpl(null);
-        resource.setNativeBoundingBox(new ReferencedEnvelope(0, 1, 0, 1, DefaultGeographicCRS.WGS84));
-        resource.setLatLonBoundingBox(new ReferencedEnvelope(0, 1, 0, 1, DefaultGeographicCRS.WGS84));
+        ReferencedEnvelope nativeBounds = new ReferencedEnvelope(0, 1000, 0, 1000, CRS.decode("EPSG:3857", true));
+        ReferencedEnvelope geographicBounds = new ReferencedEnvelope(0, 1, 0, 1, DefaultGeographicCRS.WGS84);
+        resource.setNativeCRS(CRS.decode("EPSG:3857", true));
+        resource.setSRS("EPSG:3857");
+        resource.setNativeBoundingBox(nativeBounds);
+        resource.setLatLonBoundingBox(geographicBounds);
         PortolanPublicationEntry entry = entry(new double[] {-74.0, -55.0, -53.0, -21.0});
 
-        assertTrue(provisioner.applyPortolanBounds(entry, resource));
+        assertFalse(provisioner.applyPortolanBounds(entry, resource));
 
-        assertEnvelope(resource.getNativeBoundingBox());
-        assertEnvelope(resource.getLatLonBoundingBox());
+        assertSame(nativeBounds, resource.getNativeBoundingBox());
+        assertSame(geographicBounds, resource.getLatLonBoundingBox());
+    }
+
+    @Test
+    public void replacesNativeBoundsStoredWithTheWrongCrs() throws Exception {
+        PortolanProvisioner provisioner = new PortolanProvisioner(null);
+        FeatureTypeInfoImpl resource = new FeatureTypeInfoImpl(null);
+        resource.setNativeCRS(CRS.decode("EPSG:3857", true));
+        resource.setSRS("EPSG:3857");
+        resource.setNativeBoundingBox(new ReferencedEnvelope(-1, 3, -2, 4, DefaultGeographicCRS.WGS84));
+        resource.setLatLonBoundingBox(new ReferencedEnvelope(-1, 3, -2, 4, DefaultGeographicCRS.WGS84));
+
+        assertTrue(provisioner.applyPortolanBounds(entry(new double[] {-1, -2, 3, 4}), resource));
+
+        assertEquals(-111319.49, resource.getNativeBoundingBox().getMinX(), 1.0);
+        assertEquals(333958.47, resource.getNativeBoundingBox().getMaxX(), 1.0);
     }
 
     @Test
@@ -81,6 +101,32 @@ public class PortolanProvisionerTest {
 
         assertEquals("EPSG:3857", resource.getSRS());
         assertSame(DefaultGeographicCRS.WGS84_3D, resource.getNativeCRS());
+    }
+
+    @Test
+    public void transformsFallbackBoundsToTheNativeCrs() throws Exception {
+        PortolanProvisioner provisioner = new PortolanProvisioner(null);
+        FeatureTypeInfoImpl resource = new FeatureTypeInfoImpl(null);
+        resource.setSRS("EPSG:3857");
+        resource.setNativeCRS(CRS.decode("EPSG:3857", true));
+
+        assertTrue(provisioner.applyPortolanBounds(entry(new double[] {-1, -2, 3, 4}), resource));
+
+        assertEquals(-111319.49, resource.getNativeBoundingBox().getMinX(), 1.0);
+        assertEquals(333958.47, resource.getNativeBoundingBox().getMaxX(), 1.0);
+        assertEquals(-1.0, resource.getLatLonBoundingBox().getMinX(), 0.0);
+        assertEquals(3.0, resource.getLatLonBoundingBox().getMaxX(), 0.0);
+    }
+
+    @Test
+    public void expandsAntimeridianFallbackBoundsForGeoServer() {
+        PortolanProvisioner provisioner = new PortolanProvisioner(null);
+        FeatureTypeInfoImpl resource = new FeatureTypeInfoImpl(null);
+
+        assertTrue(provisioner.applyPortolanBounds(entry(new double[] {144, -15, -64, 72}), resource));
+
+        assertEquals(-180.0, resource.getLatLonBoundingBox().getMinX(), 0.0);
+        assertEquals(180.0, resource.getLatLonBoundingBox().getMaxX(), 0.0);
     }
 
     @Test
