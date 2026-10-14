@@ -13,9 +13,11 @@ import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geoserver.catalog.Catalog;
+import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.StyleHandler;
@@ -79,6 +81,24 @@ final class PortolanStyleImporter {
                         styleName(selected, layer),
                         PortolanStyleResultStatus.SKIPPED_UNSUPPORTED,
                         mappingError);
+            }
+            String sourceError = validateStyleSource(content, selected.href(), entry);
+            if (sourceError != null) {
+                return result(
+                        entry,
+                        layer,
+                        styleName(selected, layer),
+                        PortolanStyleResultStatus.SKIPPED_UNSUPPORTED,
+                        sourceError);
+            }
+            String attributeError = validateStyleAttributes(content, layer);
+            if (attributeError != null) {
+                return result(
+                        entry,
+                        layer,
+                        styleName(selected, layer),
+                        PortolanStyleResultStatus.SKIPPED_UNSUPPORTED,
+                        attributeError);
             }
             List<Exception> errors = handler.validate(content, null, null);
             if (!errors.isEmpty()) {
@@ -225,6 +245,77 @@ final class PortolanStyleImporter {
             return null;
         }
         return "MBStyle layer mapping is ambiguous for GeoServer layer " + layer.getName();
+    }
+
+    private static String validateStyleSource(String content, URI styleUri, PortolanPublicationEntry entry)
+            throws JsonProcessingException {
+        JsonNode root = JSON.readTree(content);
+        JsonNode sources = root.path("sources");
+        if (!sources.isObject()) {
+            return null;
+        }
+        Set<String> usedSources = new HashSet<>();
+        root.path("layers").forEach(layer -> {
+            if (layer.path("source").isTextual()) {
+                usedSources.add(layer.path("source").asText());
+            }
+        });
+        Set<String> sourceUris = new HashSet<>();
+        for (String sourceName : usedSources) {
+            JsonNode url = sources.path(sourceName).path("url");
+            if (url.isTextual()) {
+                sourceUris.add(normalizeSourceUri(url.asText(), styleUri));
+            }
+        }
+        if (sourceUris.isEmpty() || sourceUris.contains(entry.href().normalize().toString())) {
+            return null;
+        }
+        return "MBStyle source targets a different asset than " + entry.href();
+    }
+
+    private static String normalizeSourceUri(String value, URI styleUri) {
+        String normalized = value;
+        if (normalized.startsWith("pmtiles://")) {
+            normalized = normalized.substring("pmtiles://".length());
+        } else if (normalized.startsWith("cog://")) {
+            normalized = normalized.substring("cog://".length());
+        }
+        return styleUri.resolve(URI.create(normalized)).normalize().toString();
+    }
+
+    private static String validateStyleAttributes(String content, LayerInfo layer) throws IOException {
+        if (!(layer.getResource() instanceof FeatureTypeInfo featureTypeInfo)) {
+            return null;
+        }
+        Set<String> referencedAttributes = new TreeSet<>();
+        collectGetAttributes(JSON.readTree(content), referencedAttributes);
+        if (referencedAttributes.isEmpty()) {
+            return null;
+        }
+        Set<String> missingAttributes = new TreeSet<>();
+        var featureType = featureTypeInfo.getFeatureType();
+        for (String attribute : referencedAttributes) {
+            if (featureType.getDescriptor(attribute) == null) {
+                missingAttributes.add(attribute);
+            }
+        }
+        return missingAttributes.isEmpty()
+                ? null
+                : "MBStyle references attributes missing from GeoServer layer "
+                        + layer.getName()
+                        + ": "
+                        + String.join(", ", missingAttributes);
+    }
+
+    private static void collectGetAttributes(JsonNode node, Set<String> attributes) {
+        if (node.isArray()
+                && node.size() >= 2
+                && node.get(0).isTextual()
+                && "get".equals(node.get(0).asText())
+                && node.get(1).isTextual()) {
+            attributes.add(node.get(1).asText());
+        }
+        node.elements().forEachRemaining(child -> collectGetAttributes(child, attributes));
     }
 
     private static String styleName(PortolanDefaultStyle selected, LayerInfo layer) {

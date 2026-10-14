@@ -12,8 +12,10 @@ Parquetry `Parquet` store when available. Vanilla GeoServer uses the classic
 `GeoParquet` store.
 
 An administrator can also import a collection's default MBStyle and assign it
-to the published layer. This option is off by default. It becomes available
-when GeoServer provides the matching `gs-mbstyle` extension.
+to the matching published layer. The module publishes supported `data` and
+`visual` assets as separate resources. It matches declared style source URLs
+to those assets. This option is off by default. It becomes available when
+GeoServer provides the matching `gs-mbstyle` extension.
 
 The module uses `portolan-java` to implement Portolan semantics and delegates actual geospatial data access to existing GeoServer/GeoTools stores.
 

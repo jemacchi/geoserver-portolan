@@ -42,11 +42,18 @@ The planner identifies collection assets whose `roles` include `style`. When
 several styles exist, one asset must also have the `default` role. The planner
 does not use asset order to choose between candidates.
 
+The planner publishes every supported collection asset with a `data` or
+`visual` role. Multiple representations get separate stores and layers. Their
+names use the collection ID and asset key, such as `county__data` and
+`county__pmtiles`.
+
 The first version supports collection-level MBStyle assets. It accepts Mapbox
 Style Specification version 8 JSON. The document must contain at least one
-style layer and must map unambiguously to the target GeoServer layer. Item
-styles, SLD conversion, CSS conversion, and full-map layer groups are outside
-this version's scope.
+style layer and must map unambiguously to the target GeoServer layer. When the
+style declares a source URL, the importer assigns it only to the matching
+asset. The importer also checks that referenced attributes exist in the target
+layer. Item styles, SLD conversion, CSS conversion, and full-map layer groups
+are outside this version's scope.
 
 The importer creates a workspace style and sets it as the layer's default. A
 stable name and source checksum make repeated imports idempotent. The importer
@@ -143,3 +150,4 @@ Common causes include a missing store extension, an unreachable asset URL, inval
 
 Default style failures can also indicate a missing `gs-mbstyle` extension, an
 unsafe style URL, invalid MBStyle JSON, or an ambiguous `source-layer` mapping.
+The module skips styles that target another asset or reference missing fields.

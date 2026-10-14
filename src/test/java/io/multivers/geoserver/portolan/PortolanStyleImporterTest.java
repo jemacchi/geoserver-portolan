@@ -14,12 +14,14 @@ import java.net.URI;
 import java.util.List;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogFactory;
+import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.ResourcePool;
 import org.geoserver.catalog.StyleHandler;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WorkspaceInfo;
+import org.geotools.api.feature.type.FeatureType;
 import org.geotools.api.style.StyledLayerDescriptor;
 import org.junit.Test;
 
@@ -196,6 +198,55 @@ public class PortolanStyleImporterTest {
     }
 
     @Test
+    public void skipsStylesThatReferenceAttributesMissingFromTheLayer() throws Exception {
+        CatalogFixture fixture = catalogFixture(null);
+        LayerInfo layer = layer();
+        FeatureTypeInfo resource = mock(FeatureTypeInfo.class);
+        FeatureType featureType = mock(FeatureType.class);
+        when(layer.getResource()).thenReturn(resource);
+        when(resource.getFeatureType()).thenReturn(featureType);
+        String content =
+                """
+                {"version":8,"layers":[{
+                  "id":"roads","type":"fill","source":"data",
+                  "paint":{"fill-color":["case",["==",["get","color_index"],0],"#fff","#000"]}
+                }]}
+                """;
+
+        PortolanStyleResult result = new PortolanStyleImporter(
+                        fixture.catalog, new PortolanStyleReadiness(() -> List.of(fixture.handler)), uri -> content)
+                .importDefaultStyle(entry(), fixture.workspace, layer);
+
+        assertEquals(PortolanStyleResultStatus.SKIPPED_UNSUPPORTED, result.status());
+        assertTrue(result.reason().contains("color_index"));
+        verify(fixture.catalog, never()).add(any(StyleInfo.class));
+        verify(layer, never()).setDefaultStyle(any());
+    }
+
+    @Test
+    public void assignsAStyleOnlyToTheAssetDeclaredAsItsSource() {
+        CatalogFixture fixture = catalogFixture(null);
+        String content =
+                """
+                {"version":8,
+                 "sources":{"data":{"type":"vector","url":"pmtiles://https://data.example.test/roads.pmtiles"}},
+                 "layers":[{"id":"roads","type":"line","source":"data","source-layer":"roads"}]}
+                """;
+        PortolanStyleImporter importer = new PortolanStyleImporter(
+                fixture.catalog, new PortolanStyleReadiness(() -> List.of(fixture.handler)), uri -> content);
+
+        PortolanStyleResult parquet = importer.importDefaultStyle(entry(), fixture.workspace, layer());
+        PortolanStyleResult pmtiles = importer.importDefaultStyle(
+                entry(PortolanResourceFormat.PMTILES, "https://data.example.test/roads.pmtiles"),
+                fixture.workspace,
+                layer());
+
+        assertEquals(PortolanStyleResultStatus.SKIPPED_UNSUPPORTED, parquet.status());
+        assertTrue(parquet.reason().contains("different asset"));
+        assertEquals(PortolanStyleResultStatus.IMPORTED, pmtiles.status());
+    }
+
+    @Test
     public void doesNotOverwriteAStyleThatPortolanDoesNotOwn() {
         StyleInfo existing = mock(StyleInfo.class);
         when(existing.getMetadata()).thenReturn(new MetadataMap());
@@ -261,6 +312,10 @@ public class PortolanStyleImporterTest {
     }
 
     private static PortolanPublicationEntry entry() {
+        return entry(PortolanResourceFormat.GEOPARQUET, "https://data.example.test/roads.parquet");
+    }
+
+    private static PortolanPublicationEntry entry(PortolanResourceFormat format, String href) {
         PortolanDefaultStyle style = new PortolanDefaultStyle(
                 PortolanStylePlanAction.IMPORT,
                 "default",
@@ -270,15 +325,7 @@ public class PortolanStyleImporterTest {
                 "demo__roads__roads__default",
                 null);
         return new PortolanPublicationEntry(
-                "roads",
-                "roads",
-                "roads",
-                PortolanResourceFormat.GEOPARQUET,
-                URI.create("https://data.example.test/roads.parquet"),
-                null,
-                PortolanPlanAction.CREATE,
-                null,
-                style);
+                "roads", "roads", "roads", format, URI.create(href), null, PortolanPlanAction.CREATE, null, style);
     }
 
     private static LayerInfo layer() {

@@ -111,6 +111,26 @@ public class PortolanPlannerTest {
     }
 
     @Test
+    public void plansEachPublishableAssetInACollection() throws Exception {
+        Path catalogPath = writeCatalog("demo", List.of(collectionWithDataAndVisualAssets()));
+        PortolanPlanner planner = new PortolanPlanner(new CatalogImpl(), format -> null);
+
+        PortolanPublicationPlan plan = planner.plan(catalogPath, "target", true);
+
+        assertEquals(2, plan.entries().size());
+        PortolanPublicationEntry data = plan.entries().get(0);
+        assertEquals("county__data", data.storeName());
+        assertEquals("county__data", data.layerName());
+        assertEquals(PortolanResourceFormat.GEOPARQUET, data.format());
+        PortolanPublicationEntry visual = plan.entries().get(1);
+        assertEquals("county__pmtiles", visual.storeName());
+        assertEquals("county__pmtiles", visual.layerName());
+        assertEquals(PortolanResourceFormat.PMTILES, visual.format());
+        assertEquals(PortolanStylePlanAction.IMPORT, data.defaultStyle().action());
+        assertEquals(PortolanStylePlanAction.IMPORT, visual.defaultStyle().action());
+    }
+
+    @Test
     public void leavesDefaultStyleImportDisabledUnlessRequested() throws Exception {
         Path catalogPath = writeCatalog(
                 "demo",
@@ -245,6 +265,14 @@ public class PortolanPlannerTest {
                 + "\"extent\":{\"spatial\":{\"bbox\":[[\"NaN\",0,1,2]]}},\"assets\":{"
                 + "\"preview\":{\"href\":\"preview.tif\",\"roles\":[\"overview\"]},"
                 + "\"data\":{\"href\":\"data.parquet\",\"roles\":[\"data\"]}}}";
+    }
+
+    private static String collectionWithDataAndVisualAssets() {
+        return "{\"type\":\"Collection\",\"id\":\"county\",\"links\":[],\"assets\":{"
+                + "\"data\":{\"href\":\"county.parquet\",\"roles\":[\"data\"]},"
+                + "\"pmtiles\":{\"href\":\"county.pmtiles\",\"roles\":[\"visual\"]},"
+                + "\"style\":{\"href\":\"default.json\",\"type\":\"application/vnd.mapbox.style+json\","
+                + "\"roles\":[\"style\",\"default\"]}}}";
     }
 
     private static String collectionWithStyles(String id, String styles) {

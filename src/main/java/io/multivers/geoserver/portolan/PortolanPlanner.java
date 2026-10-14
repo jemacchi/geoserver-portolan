@@ -63,40 +63,40 @@ public final class PortolanPlanner {
         LOGGER.info(() -> "Planning Portolan catalog " + catalogId + " for workspace " + workspace);
         List<PortolanPublicationEntry> entries = new ArrayList<>();
         for (PortolanCollection collection : portolanCatalog.collections()) {
-            PortolanAsset asset = primaryAsset(collection);
-            if (asset == null) {
-                LOGGER.info(() -> "Skipping collection " + collection.id() + ": no asset");
-                entries.add(skip(collection.id(), "no asset"));
+            List<PortolanAsset> assets = publishableAssets(collection);
+            if (assets.isEmpty()) {
+                String reason = collection.assets().isEmpty() ? "no asset" : "unsupported asset format";
+                LOGGER.info(() -> "Skipping collection " + collection.id() + ": " + reason);
+                entries.add(skip(collection.id(), reason));
                 continue;
             }
-            PortolanResourceFormat format = format(asset);
-            if (format == PortolanResourceFormat.UNKNOWN) {
-                LOGGER.info(() -> "Skipping collection " + collection.id() + ": unsupported asset format");
-                entries.add(skip(collection.id(), "unsupported asset format"));
-                continue;
+            for (PortolanAsset asset : assets) {
+                PortolanResourceFormat format = format(asset);
+                String storeName = publicationName(collection, asset, assets.size());
+                String reason = unsupportedReason.apply(format);
+                PortolanPlanAction action = action(workspace, storeName, reason);
+                LOGGER.info(() -> "Planned collection "
+                        + collection.id()
+                        + " asset "
+                        + asset.key()
+                        + " as "
+                        + format
+                        + " store "
+                        + storeName
+                        + " with action "
+                        + action
+                        + (reason == null ? "" : ": " + reason));
+                entries.add(new PortolanPublicationEntry(
+                        collection.id(),
+                        storeName,
+                        storeName,
+                        format,
+                        asset.href(),
+                        bbox(collection),
+                        action,
+                        reason,
+                        defaultStyle(catalogId, collection, storeName, importDefaultStyles)));
             }
-            String storeName = geoserverName(collection.id());
-            String reason = unsupportedReason.apply(format);
-            PortolanPlanAction action = action(workspace, storeName, reason);
-            LOGGER.info(() -> "Planned collection "
-                    + collection.id()
-                    + " as "
-                    + format
-                    + " store "
-                    + storeName
-                    + " with action "
-                    + action
-                    + (reason == null ? "" : ": " + reason));
-            entries.add(new PortolanPublicationEntry(
-                    collection.id(),
-                    storeName,
-                    storeName,
-                    format,
-                    asset.href(),
-                    bbox(collection),
-                    action,
-                    reason,
-                    defaultStyle(catalogId, collection, storeName, importDefaultStyles)));
         }
         return new PortolanPublicationPlan(
                 catalogId, portolanCatalog.href().toString(), workspace, List.copyOf(entries), importDefaultStyles);
@@ -116,14 +116,21 @@ public final class PortolanPlanner {
         return store == null ? PortolanPlanAction.CREATE : PortolanPlanAction.EXISTS;
     }
 
-    private PortolanAsset primaryAsset(PortolanCollection collection) {
-        List<PortolanAsset> assets = collection.assets();
-        for (PortolanAsset asset : assets) {
-            if (asset.roles().contains("data")) {
-                return asset;
-            }
+    private List<PortolanAsset> publishableAssets(PortolanCollection collection) {
+        List<PortolanAsset> explicit = collection.assets().stream()
+                .filter(asset -> format(asset) != PortolanResourceFormat.UNKNOWN)
+                .filter(asset -> asset.roles().contains("data") || asset.roles().contains("visual"))
+                .toList();
+        if (!explicit.isEmpty()) {
+            return explicit;
         }
-        return assets.isEmpty() ? null : assets.get(0);
+        return collection.assets().stream()
+                .filter(asset -> format(asset) != PortolanResourceFormat.UNKNOWN)
+                .toList();
+    }
+
+    private String publicationName(PortolanCollection collection, PortolanAsset asset, int assetCount) {
+        return assetCount == 1 ? geoserverName(collection.id()) : geoserverName(collection.id() + "__" + asset.key());
     }
 
     private PortolanDefaultStyle defaultStyle(
