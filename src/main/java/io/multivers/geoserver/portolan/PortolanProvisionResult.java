@@ -8,12 +8,19 @@ public final class PortolanProvisionResult {
     private final int created;
     private final int skipped;
     private final List<String> messages;
+    private final List<PortolanStyleResult> styleResults;
 
     public PortolanProvisionResult(String workspace, int created, int skipped, List<String> messages) {
+        this(workspace, created, skipped, messages, List.of());
+    }
+
+    public PortolanProvisionResult(
+            String workspace, int created, int skipped, List<String> messages, List<PortolanStyleResult> styleResults) {
         this.workspace = workspace;
         this.created = created;
         this.skipped = skipped;
-        this.messages = messages;
+        this.messages = List.copyOf(messages);
+        this.styleResults = List.copyOf(styleResults);
     }
 
     public String workspace() {
@@ -30,5 +37,9 @@ public final class PortolanProvisionResult {
 
     public List<String> messages() {
         return messages;
+    }
+
+    public List<PortolanStyleResult> styleResults() {
+        return styleResults;
     }
 }

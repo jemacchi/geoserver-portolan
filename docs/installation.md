@@ -21,6 +21,10 @@ unzip geoserver-portolan-<version>-full.zip \
 Start GeoServer and sign in. Open **Utilities**, then select **Portolan**.
 The readiness panel must report each store that the selected catalog needs.
 
+Default style import is optional. Install `gs-mbstyle` from the same GeoServer
+release to enable its checkbox. The Portolan page and data provisioning remain
+available without this extension.
+
 ## Build a vanilla GeoServer image
 
 The official GeoServer image loads JARs from `/opt/additional_libs` and copies

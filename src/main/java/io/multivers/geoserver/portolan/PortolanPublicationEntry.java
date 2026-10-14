@@ -12,6 +12,7 @@ public final class PortolanPublicationEntry {
     private final double[] bbox;
     private final PortolanPlanAction action;
     private final String reason;
+    private final PortolanDefaultStyle defaultStyle;
 
     public PortolanPublicationEntry(
             String collectionId,
@@ -22,6 +23,19 @@ public final class PortolanPublicationEntry {
             double[] bbox,
             PortolanPlanAction action,
             String reason) {
+        this(collectionId, storeName, layerName, format, href, bbox, action, reason, PortolanDefaultStyle.disabled());
+    }
+
+    public PortolanPublicationEntry(
+            String collectionId,
+            String storeName,
+            String layerName,
+            PortolanResourceFormat format,
+            URI href,
+            double[] bbox,
+            PortolanPlanAction action,
+            String reason,
+            PortolanDefaultStyle defaultStyle) {
         this.collectionId = collectionId;
         this.storeName = storeName;
         this.layerName = layerName;
@@ -30,6 +44,7 @@ public final class PortolanPublicationEntry {
         this.bbox = bbox == null ? null : bbox.clone();
         this.action = action;
         this.reason = reason;
+        this.defaultStyle = defaultStyle == null ? PortolanDefaultStyle.disabled() : defaultStyle;
     }
 
     public String collectionId() {
@@ -62,5 +77,9 @@ public final class PortolanPublicationEntry {
 
     public String reason() {
         return reason;
+    }
+
+    public PortolanDefaultStyle defaultStyle() {
+        return defaultStyle;
     }
 }

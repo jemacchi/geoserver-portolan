@@ -3,6 +3,7 @@ package io.multivers.geoserver.portolan.web;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -17,6 +18,9 @@ import io.multivers.geoserver.portolan.PortolanPublicationPlan;
 import io.multivers.geoserver.portolan.PortolanRegistryFacade;
 import io.multivers.geoserver.portolan.PortolanResourceFormat;
 import io.multivers.geoserver.portolan.PortolanStoreReadiness;
+import io.multivers.geoserver.portolan.PortolanStyleReadiness;
+import io.multivers.geoserver.portolan.PortolanStyleResult;
+import io.multivers.geoserver.portolan.PortolanStyleResultStatus;
 import java.net.URI;
 import java.util.List;
 import org.apache.wicket.util.tester.FormTester;
@@ -63,13 +67,24 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
 
     @Test
     public void rendersProvisionResult() {
-        String rendered = PortolanPage.renderResult(
-                new PortolanProvisionResult("target", 2, 1, List.of("roads: created", "tiles: skipped")));
+        String rendered = PortolanPage.renderResult(new PortolanProvisionResult(
+                "target",
+                2,
+                1,
+                List.of("roads: created", "tiles: skipped"),
+                List.of(new PortolanStyleResult(
+                        "roads",
+                        "roads",
+                        "demo__roads__default",
+                        PortolanStyleResultStatus.IMPORTED,
+                        "style imported and assigned"))));
 
         assertTrue(rendered.contains("Workspace: target"));
         assertTrue(rendered.contains("Created: 2"));
         assertTrue(rendered.contains("Skipped: 1"));
         assertTrue(rendered.contains("roads: created\ntiles: skipped"));
+        assertTrue(rendered.contains("Default style results:"));
+        assertTrue(rendered.contains("roads / roads: IMPORTED (demo__roads__default)"));
     }
 
     @Test
@@ -91,7 +106,7 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
         when(facade.listCatalogs(anyString()))
                 .thenReturn(List.of(
                         new RegistryCatalogEntry("demo", "https://example.test/catalog.json", "Demo", "valid")));
-        when(facade.planRegistryCatalog(anyString(), anyString(), anyString()))
+        when(facade.planRegistryCatalog(anyString(), anyString(), anyString(), anyBoolean()))
                 .thenReturn(new PortolanPublicationPlan(
                         "demo",
                         "https://example.test/catalog.json",
@@ -104,11 +119,18 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
         when(facade.provision(any(PortolanPublicationPlan.class)))
                 .thenReturn(new PortolanProvisionResult("target", 1, 0, List.of("created")));
         login();
-        TestPage page = new TestPage(facade, new PortolanStoreReadiness(name -> true, className -> true));
+        TestPage page = new TestPage(
+                facade,
+                new PortolanStoreReadiness(name -> true, className -> true),
+                new PortolanStyleReadiness(List::of));
         assertEquals(ComponentAuthorizer.AUTHENTICATED, page.authorizer());
         tester.startPage(page);
         tester.assertEnabled("form:plan");
         tester.assertDisabled("form:provision");
+        tester.assertDisabled("form:importDefaultStyles");
+        assertTrue(tester.getComponentFromLastRenderedPage("form:styleReadiness")
+                .getDefaultModelObjectAsString()
+                .contains("MISSING"));
         assertTrue(tester.getComponentFromLastRenderedPage("form:readiness")
                 .getDefaultModelObjectAsString()
                 .contains("Portolan store readiness: COMPLETE"));
@@ -145,10 +167,13 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
                         PortolanPlanAction.UNSUPPORTED,
                         "PMTiles store extension is not installed. Install gs-pmtiles-store.",
                         URI.create("https://example.test/tiles.pmtiles"))));
-        when(facade.planRegistryCatalog(anyString(), anyString(), anyString())).thenReturn(blocked);
+        when(facade.planRegistryCatalog(anyString(), anyString(), anyString(), anyBoolean()))
+                .thenReturn(blocked);
         login();
-        tester.startPage(
-                new TestPage(facade, new PortolanStoreReadiness(name -> !"PMTiles".equals(name), className -> true)));
+        tester.startPage(new TestPage(
+                facade,
+                new PortolanStoreReadiness(name -> !"PMTiles".equals(name), className -> true),
+                new PortolanStyleReadiness(List::of)));
 
         FormTester form = tester.newFormTester("form");
         form.setValue("registryUrl", "https://example.test/registry.json");
@@ -181,9 +206,13 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
                         PortolanPlanAction.UNSUPPORTED,
                         "GeoParquet store extension is not installed. Install gs-geoparquet.",
                         URI.create("https://example.test/roads.parquet"))));
-        when(facade.planRegistryCatalog(anyString(), anyString(), anyString())).thenReturn(ready, blocked);
+        when(facade.planRegistryCatalog(anyString(), anyString(), anyString(), anyBoolean()))
+                .thenReturn(ready, blocked);
         login();
-        tester.startPage(new TestPage(facade, new PortolanStoreReadiness(name -> true, className -> true)));
+        tester.startPage(new TestPage(
+                facade,
+                new PortolanStoreReadiness(name -> true, className -> true),
+                new PortolanStyleReadiness(List::of)));
 
         FormTester form = tester.newFormTester("form");
         form.setValue("registryUrl", "https://example.test/registry.json");
@@ -202,6 +231,44 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
         verify(facade, never()).provision(any(PortolanPublicationPlan.class));
     }
 
+    @Test
+    public void enablesOptionalStyleImportWhenMbStyleIsAvailable() {
+        PortolanRegistryFacade facade = mock(PortolanRegistryFacade.class);
+        PortolanPublicationPlan plan = new PortolanPublicationPlan(
+                "demo",
+                "https://example.test/catalog.json",
+                "target",
+                List.of(entry(
+                        "roads", PortolanPlanAction.CREATE, null, URI.create("https://example.test/roads.parquet"))),
+                true);
+        when(facade.planRegistryCatalog(anyString(), anyString(), anyString(), anyBoolean()))
+                .thenReturn(plan);
+        login();
+        tester.startPage(new TestPage(
+                facade,
+                new PortolanStoreReadiness(name -> true, className -> true),
+                new PortolanStyleReadiness(() -> List.of(mbStyleHandler()))));
+
+        tester.assertEnabled("form:importDefaultStyles");
+        FormTester form = tester.newFormTester("form");
+        form.setValue("registryUrl", "https://example.test/registry.json");
+        form.setValue("catalogId", "demo");
+        form.setValue("workspace", "target");
+        form.setValue("importDefaultStyles", true);
+        form.submit("plan");
+
+        verify(facade).planRegistryCatalog("https://example.test/registry.json", "demo", "target", true);
+        assertTrue(tester.getComponentFromLastRenderedPage("form:styleReadiness")
+                .getDefaultModelObjectAsString()
+                .contains("AVAILABLE"));
+    }
+
+    private static org.geoserver.catalog.StyleHandler mbStyleHandler() {
+        org.geoserver.catalog.StyleHandler handler = mock(org.geoserver.catalog.StyleHandler.class);
+        when(handler.getFormat()).thenReturn("mbstyle");
+        return handler;
+    }
+
     private static PortolanPublicationEntry entry(String id, PortolanPlanAction action, String reason, URI href) {
         return new PortolanPublicationEntry(id, id, id, PortolanResourceFormat.GEOPARQUET, href, null, action, reason);
     }
@@ -209,8 +276,11 @@ public class PortolanPageTest extends GeoServerWicketTestSupport {
     private static final class TestPage extends PortolanPage {
         private final PortolanRegistryFacade facade;
 
-        private TestPage(PortolanRegistryFacade facade, PortolanStoreReadiness readiness) {
-            super(readiness);
+        private TestPage(
+                PortolanRegistryFacade facade,
+                PortolanStoreReadiness readiness,
+                PortolanStyleReadiness styleReadiness) {
+            super(readiness, styleReadiness);
             this.facade = facade;
         }
 

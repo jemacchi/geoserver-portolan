@@ -2,6 +2,7 @@
 
 <beans>
   <bean id="portolanStoreReadiness" class="io.multivers.geoserver.portolan.PortolanStoreReadiness"/>
+  <bean id="portolanStyleReadiness" class="io.multivers.geoserver.portolan.PortolanStyleReadiness"/>
 
   <bean id="portolanPage" class="org.geoserver.web.ToolLinkInfo">
     <property name="id" value="portolanPage"/>

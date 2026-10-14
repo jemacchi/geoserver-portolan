@@ -15,6 +15,8 @@ import java.util.List;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.DataStoreInfo;
+import org.geoserver.catalog.LayerInfo;
+import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.catalog.impl.CatalogImpl;
@@ -463,6 +465,32 @@ public class PortolanProvisionerTest {
         assertEquals(1, unknown.skipped());
     }
 
+    @Test
+    public void keepsLayerAndStyleOutcomesSeparate() throws Exception {
+        Catalog catalog = mock(Catalog.class);
+        ResourceInfo resource = mock(ResourceInfo.class);
+        StoreInfo store = mock(StoreInfo.class);
+        WorkspaceInfo workspace = mock(WorkspaceInfo.class);
+        LayerInfo layer = mock(LayerInfo.class);
+        when(resource.prefixedName()).thenReturn("target:roads");
+        when(resource.getStore()).thenReturn(store);
+        when(store.getWorkspace()).thenReturn(workspace);
+        when(catalog.getLayerByName("target:roads")).thenReturn(layer);
+        PortolanPublicationEntry styledEntry = styledEntry();
+        PortolanStyleResult expected = new PortolanStyleResult(
+                "roads", "roads", "demo__roads__roads__default", PortolanStyleResultStatus.IMPORTED, "imported");
+        PortolanProvisioner provisioner = new PortolanProvisioner(
+                catalog,
+                (entry, ignored) -> List.of(),
+                PortolanGeoParquetStore.classic(),
+                (entry, targetWorkspace, targetLayer, targetLayerCount) -> expected);
+
+        PortolanProvisioner.LayerPublication result = provisioner.publishLayer(styledEntry, resource, "roads");
+
+        assertEquals(List.of("  layer exists: target:roads"), result.messages());
+        assertEquals(List.of(expected), result.styleResults());
+    }
+
     private static PortolanPublicationEntry entry(double[] bbox) {
         return new PortolanPublicationEntry(
                 "collection",
@@ -478,6 +506,26 @@ public class PortolanProvisionerTest {
     private static PortolanPublicationEntry entry(
             String id, PortolanResourceFormat format, URI href, PortolanPlanAction action, String reason) {
         return new PortolanPublicationEntry(id, id, id, format, href, null, action, reason);
+    }
+
+    private static PortolanPublicationEntry styledEntry() {
+        return new PortolanPublicationEntry(
+                "roads",
+                "roads",
+                "roads",
+                PortolanResourceFormat.GEOPARQUET,
+                URI.create("https://example.test/roads.parquet"),
+                null,
+                PortolanPlanAction.EXISTS,
+                null,
+                new PortolanDefaultStyle(
+                        PortolanStylePlanAction.IMPORT,
+                        "default",
+                        URI.create("https://styles.example.test/roads.json"),
+                        "application/vnd.mapbox.style+json",
+                        List.of("style", "default"),
+                        "demo__roads__roads__default",
+                        null));
     }
 
     private static PortolanPublicationPlan plan(List<PortolanPublicationEntry> entries) {

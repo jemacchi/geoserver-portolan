@@ -6,10 +6,12 @@ import io.multivers.geoserver.portolan.PortolanPublicationPlan;
 import io.multivers.geoserver.portolan.PortolanRegistryFacade;
 import io.multivers.geoserver.portolan.PortolanStoreReadiness;
 import io.multivers.geoserver.portolan.PortolanStoreStatus;
+import io.multivers.geoserver.portolan.PortolanStyleReadiness;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.Button;
+import org.apache.wicket.markup.html.form.CheckBox;
 import org.apache.wicket.markup.html.form.Form;
 import org.apache.wicket.markup.html.form.TextArea;
 import org.apache.wicket.markup.html.form.TextField;
@@ -26,29 +28,43 @@ public class PortolanPage extends GeoServerSecuredPage {
     private final Model<String> catalogId = Model.of("");
     private final Model<String> workspace = Model.of("");
     private final Model<String> output = Model.of("Load registry catalogs to begin.");
+    private final Model<Boolean> importDefaultStyles = Model.of(false);
     private transient PortolanStoreReadiness storeReadiness;
+    private transient PortolanStyleReadiness styleReadiness;
     private final Button provisionButton;
 
     public PortolanPage() {
-        this(resolveReadiness());
+        this(resolveReadiness(), resolveStyleReadiness());
     }
 
     public PortolanPage(PortolanStoreReadiness storeReadiness) {
+        this(storeReadiness, resolveStyleReadiness());
+    }
+
+    public PortolanPage(PortolanStoreReadiness storeReadiness, PortolanStyleReadiness styleReadiness) {
         this.storeReadiness = storeReadiness;
+        this.styleReadiness = styleReadiness;
         Form<Void> form = new Form<>("form");
         add(form);
 
         form.add(new TextField<>("registryUrl", registryUrl));
         form.add(new TextField<>("catalogId", catalogId));
         form.add(new TextField<>("workspace", workspace));
+        CheckBox styleImport = new CheckBox("importDefaultStyles", importDefaultStyles);
+        styleImport.setEnabled(styleReadiness().available());
+        form.add(styleImport);
         form.add(new TextArea<>("output", output));
         form.add(new Label("readiness", Model.of(renderReadiness(storeReadiness))));
+        form.add(new Label("styleReadiness", Model.of(styleReadiness().message())));
         form.add(new Label("hint", "Paste a catalog id from the registry list, then plan or provision."));
         provisionButton = new Button("provision") {
             @Override
             public void onSubmit() {
                 PortolanPublicationPlan plan = facade().planRegistryCatalog(
-                                registryUrl.getObject(), catalogId.getObject(), workspace.getObject());
+                                registryUrl.getObject(),
+                                catalogId.getObject(),
+                                workspace.getObject(),
+                                styleImportRequested());
                 if (!plan.provisionable()) {
                     setEnabled(false);
                     output.setObject(renderPlan(plan));
@@ -72,7 +88,10 @@ public class PortolanPage extends GeoServerSecuredPage {
             @Override
             public void onSubmit() {
                 PortolanPublicationPlan plan = facade().planRegistryCatalog(
-                                registryUrl.getObject(), catalogId.getObject(), workspace.getObject());
+                                registryUrl.getObject(),
+                                catalogId.getObject(),
+                                workspace.getObject(),
+                                styleImportRequested());
                 output.setObject(renderPlan(plan));
                 provisionButton.setEnabled(plan.provisionable());
             }
@@ -104,6 +123,9 @@ public class PortolanPage extends GeoServerSecuredPage {
         builder.append("Catalog: ").append(plan.catalogId()).append('\n');
         builder.append("Workspace: ").append(plan.workspace()).append('\n');
         builder.append("Creatable: ").append(plan.creatableCount()).append("\n\n");
+        builder.append("Default style import: ")
+                .append(plan.importDefaultStyles() ? "REQUESTED" : "OFF")
+                .append("\n\n");
         builder.append("Provisioning: ")
                 .append(plan.provisionable() ? "READY" : "BLOCKED")
                 .append("\n\n");
@@ -126,7 +148,21 @@ public class PortolanPage extends GeoServerSecuredPage {
             if (entry.reason() != null) {
                 builder.append("  Reason: ").append(entry.reason()).append('\n');
             }
-            builder.append("  Asset: ").append(entry.href()).append("\n\n");
+            builder.append("  Asset: ").append(entry.href()).append('\n');
+            builder.append("  Default style: ")
+                    .append(entry.defaultStyle().action())
+                    .append('\n');
+            if (entry.defaultStyle().href() != null) {
+                builder.append("  Style asset: ")
+                        .append(entry.defaultStyle().href())
+                        .append('\n');
+            }
+            if (entry.defaultStyle().reason() != null) {
+                builder.append("  Style reason: ")
+                        .append(entry.defaultStyle().reason())
+                        .append('\n');
+            }
+            builder.append('\n');
         }
         return builder.toString();
     }
@@ -149,14 +185,32 @@ public class PortolanPage extends GeoServerSecuredPage {
     }
 
     static String renderResult(PortolanProvisionResult result) {
-        return "Workspace: "
-                + result.workspace()
-                + "\nCreated: "
-                + result.created()
-                + "\nSkipped: "
-                + result.skipped()
-                + "\n\n"
-                + String.join("\n", result.messages());
+        StringBuilder builder = new StringBuilder("Workspace: ")
+                .append(result.workspace())
+                .append("\nCreated: ")
+                .append(result.created())
+                .append("\nSkipped: ")
+                .append(result.skipped())
+                .append("\n\n")
+                .append(String.join("\n", result.messages()));
+        if (!result.styleResults().isEmpty()) {
+            builder.append("\n\nDefault style results:\n");
+            for (var style : result.styleResults()) {
+                builder.append(style.collectionId())
+                        .append(" / ")
+                        .append(style.layerName())
+                        .append(": ")
+                        .append(style.status());
+                if (style.styleName() != null) {
+                    builder.append(" (").append(style.styleName()).append(')');
+                }
+                if (style.reason() != null) {
+                    builder.append(" - ").append(style.reason());
+                }
+                builder.append('\n');
+            }
+        }
+        return builder.toString();
     }
 
     private static PortolanStoreReadiness resolveReadiness() {
@@ -164,10 +218,26 @@ public class PortolanPage extends GeoServerSecuredPage {
         return readiness == null ? new PortolanStoreReadiness() : readiness;
     }
 
+    private static PortolanStyleReadiness resolveStyleReadiness() {
+        PortolanStyleReadiness readiness = GeoServerExtensions.bean(PortolanStyleReadiness.class);
+        return readiness == null ? new PortolanStyleReadiness() : readiness;
+    }
+
     private PortolanStoreReadiness storeReadiness() {
         if (storeReadiness == null) {
             storeReadiness = resolveReadiness();
         }
         return storeReadiness;
+    }
+
+    private PortolanStyleReadiness styleReadiness() {
+        if (styleReadiness == null) {
+            styleReadiness = resolveStyleReadiness();
+        }
+        return styleReadiness;
+    }
+
+    private boolean styleImportRequested() {
+        return styleReadiness().available() && Boolean.TRUE.equals(importDefaultStyles.getObject());
     }
 }

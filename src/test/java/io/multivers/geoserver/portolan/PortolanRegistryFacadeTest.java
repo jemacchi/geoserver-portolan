@@ -78,22 +78,24 @@ public class PortolanRegistryFacadeTest {
     @Test
     public void defaultAdapterReadsAndDownloadsHttpRegistryCatalog() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/catalog.json", exchange -> respond(
-                exchange,
-                "{\"type\":\"Catalog\",\"stac_version\":\"1.1.0\",\"id\":\"local\",\"links\":[]}"));
-        server.createContext("/registry.json", exchange -> respond(
-                exchange,
-                "{\"links\":[{\"rel\":\"child\",\"href\":\"/catalog.json\","
-                        + "\"portolan_registry:id\":\"local\","
-                        + "\"portolan_registry:status\":\"valid\",\"title\":\"Local\"}]}"));
+        server.createContext(
+                "/catalog.json",
+                exchange -> respond(
+                        exchange, "{\"type\":\"Catalog\",\"stac_version\":\"1.1.0\",\"id\":\"local\",\"links\":[]}"));
+        server.createContext(
+                "/registry.json",
+                exchange -> respond(
+                        exchange,
+                        "{\"links\":[{\"rel\":\"child\",\"href\":\"/catalog.json\","
+                                + "\"portolan_registry:id\":\"local\","
+                                + "\"portolan_registry:status\":\"valid\",\"title\":\"Local\"}]}"));
         server.start();
         try {
             String registryUrl = "http://127.0.0.1:" + server.getAddress().getPort() + "/registry.json";
             PortolanRegistryFacade facade = new PortolanRegistryFacade(new CatalogImpl());
 
             assertEquals("local", facade.listCatalogs(registryUrl).get(0).id());
-            PortolanPublicationPlan plan =
-                    facade.planRegistryCatalog(registryUrl, "local", "target");
+            PortolanPublicationPlan plan = facade.planRegistryCatalog(registryUrl, "local", "target");
             assertEquals("local", plan.catalogId());
             assertEquals("target", plan.workspace());
         } finally {

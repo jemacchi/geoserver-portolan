@@ -22,6 +22,14 @@
             <input wicket:id="workspace" type="text" size="60" />
           </p>
           <p>
+            <label>
+              <input wicket:id="importDefaultStyles" type="checkbox" />
+              Import and assign default styles to layers
+            </label><br />
+            <span>When available, import the default style from each Portolan collection and assign it to the corresponding GeoServer layers. Requires a supported GeoServer styling extension.</span>
+          </p>
+          <pre wicket:id="styleReadiness"></pre>
+          <p>
             <button wicket:id="load" type="submit">Load registry</button>
             <button wicket:id="plan" type="submit">Preview selected catalog plan</button>
             <button wicket:id="provision" type="submit">Provision selected catalog</button>

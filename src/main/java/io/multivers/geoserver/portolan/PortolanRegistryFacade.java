@@ -40,13 +40,23 @@ public final class PortolanRegistryFacade {
     }
 
     public PortolanPublicationPlan planRegistryCatalog(String registryUrl, String catalogId, String workspaceName) {
+        return planRegistryCatalog(registryUrl, catalogId, workspaceName, false);
+    }
+
+    public PortolanPublicationPlan planRegistryCatalog(
+            String registryUrl, String catalogId, String workspaceName, boolean importDefaultStyles) {
         Path localCatalog = download(registryUrl, catalogId);
-        return planner.plan(localCatalog, workspaceName);
+        return planner.plan(localCatalog, workspaceName, importDefaultStyles);
     }
 
     public PortolanProvisionResult provisionRegistryCatalog(
             String registryUrl, String catalogId, String workspaceName) {
-        PortolanPublicationPlan plan = planRegistryCatalog(registryUrl, catalogId, workspaceName);
+        return provisionRegistryCatalog(registryUrl, catalogId, workspaceName, false);
+    }
+
+    public PortolanProvisionResult provisionRegistryCatalog(
+            String registryUrl, String catalogId, String workspaceName, boolean importDefaultStyles) {
+        PortolanPublicationPlan plan = planRegistryCatalog(registryUrl, catalogId, workspaceName, importDefaultStyles);
         return provision.apply(plan);
     }
 

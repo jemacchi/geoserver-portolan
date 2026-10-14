@@ -5,6 +5,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import org.geoserver.catalog.Catalog;
@@ -36,14 +37,27 @@ public final class PortolanPlanner {
     }
 
     public PortolanPublicationPlan plan(Path catalogPath, String workspaceName) {
-        return plan(PortolanCatalog.open(catalogPath), workspaceName);
+        return plan(PortolanCatalog.open(catalogPath), workspaceName, false);
+    }
+
+    public PortolanPublicationPlan plan(Path catalogPath, String workspaceName, boolean importDefaultStyles) {
+        return plan(PortolanCatalog.open(catalogPath), workspaceName, importDefaultStyles);
     }
 
     public PortolanPublicationPlan plan(URI catalogUri, String workspaceName) {
-        return plan(PortolanCatalog.open(catalogUri), workspaceName);
+        return plan(PortolanCatalog.open(catalogUri), workspaceName, false);
+    }
+
+    public PortolanPublicationPlan plan(URI catalogUri, String workspaceName, boolean importDefaultStyles) {
+        return plan(PortolanCatalog.open(catalogUri), workspaceName, importDefaultStyles);
     }
 
     public PortolanPublicationPlan plan(PortolanCatalog portolanCatalog, String workspaceName) {
+        return plan(portolanCatalog, workspaceName, false);
+    }
+
+    public PortolanPublicationPlan plan(
+            PortolanCatalog portolanCatalog, String workspaceName, boolean importDefaultStyles) {
         String catalogId = fallback(portolanCatalog.id(), "portolan");
         String workspace = fallback(workspaceName, catalogId);
         LOGGER.info(() -> "Planning Portolan catalog " + catalogId + " for workspace " + workspace);
@@ -74,10 +88,18 @@ public final class PortolanPlanner {
                     + action
                     + (reason == null ? "" : ": " + reason));
             entries.add(new PortolanPublicationEntry(
-                    collection.id(), storeName, storeName, format, asset.href(), bbox(collection), action, reason));
+                    collection.id(),
+                    storeName,
+                    storeName,
+                    format,
+                    asset.href(),
+                    bbox(collection),
+                    action,
+                    reason,
+                    defaultStyle(catalogId, collection, storeName, importDefaultStyles)));
         }
         return new PortolanPublicationPlan(
-                catalogId, portolanCatalog.href().toString(), workspace, List.copyOf(entries));
+                catalogId, portolanCatalog.href().toString(), workspace, List.copyOf(entries), importDefaultStyles);
     }
 
     private PortolanPublicationEntry skip(String collectionId, String reason) {
@@ -102,6 +124,56 @@ public final class PortolanPlanner {
             }
         }
         return assets.isEmpty() ? null : assets.get(0);
+    }
+
+    private PortolanDefaultStyle defaultStyle(
+            String catalogId, PortolanCollection collection, String layerName, boolean requested) {
+        if (!requested) {
+            return PortolanDefaultStyle.disabled();
+        }
+        List<PortolanAsset> styles = collection.assets().stream()
+                .filter(asset -> asset.roles().contains("style"))
+                .toList();
+        if (styles.isEmpty()) {
+            return PortolanDefaultStyle.skipped(
+                    PortolanStylePlanAction.SKIPPED_NO_STYLE, "collection has no style asset");
+        }
+        List<PortolanAsset> defaults = styles.stream()
+                .filter(asset -> asset.roles().contains("default"))
+                .toList();
+        if (defaults.size() > 1) {
+            return PortolanDefaultStyle.skipped(
+                    PortolanStylePlanAction.SKIPPED_UNSUPPORTED, "collection declares multiple default style assets");
+        }
+        if (defaults.isEmpty() && styles.size() > 1) {
+            return PortolanDefaultStyle.skipped(
+                    PortolanStylePlanAction.SKIPPED_UNSUPPORTED,
+                    "collection declares multiple style assets without one default");
+        }
+        PortolanAsset selected = defaults.isEmpty() ? styles.get(0) : defaults.get(0);
+        if (!isMbStyleMediaType(selected.mediaType())) {
+            return PortolanDefaultStyle.skipped(
+                    PortolanStylePlanAction.SKIPPED_UNSUPPORTED, "default style is not declared as MBStyle or JSON");
+        }
+        String styleName = geoserverName(catalogId + "__" + collection.id() + "__" + layerName + "__" + selected.key());
+        return new PortolanDefaultStyle(
+                PortolanStylePlanAction.IMPORT,
+                selected.key(),
+                selected.href(),
+                selected.mediaType(),
+                selected.roles(),
+                styleName,
+                null);
+    }
+
+    static boolean isMbStyleMediaType(String mediaType) {
+        if (mediaType == null || mediaType.isBlank()) {
+            return true;
+        }
+        String normalized = mediaType.split(";", 2)[0].trim().toLowerCase(Locale.ROOT);
+        return normalized.equals("application/json")
+                || normalized.equals("application/vnd.mapbox.style+json")
+                || normalized.equals("application/vnd.geoserver.mbstyle+json");
     }
 
     private PortolanResourceFormat format(PortolanAsset asset) {

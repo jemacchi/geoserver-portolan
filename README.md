@@ -11,6 +11,10 @@ objects for GeoParquet, COG, and PMTiles assets. GeoServer Cloud uses its
 Parquetry `Parquet` store when available. Vanilla GeoServer uses the classic
 `GeoParquet` store.
 
+An administrator can also import a collection's default MBStyle and assign it
+to the published layer. This option is off by default. It becomes available
+when GeoServer provides the matching `gs-mbstyle` extension.
+
 The module uses `portolan-java` to implement Portolan semantics and delegates actual geospatial data access to existing GeoServer/GeoTools stores.
 
 ## Important distinction
@@ -467,6 +471,7 @@ This repository now contains the first GeoServer Web UI module skeleton:
 * `PortolanPage` adds a Web UI menu page for registry discovery and planning.
 * `PortolanProvisioner` creates the workspace and defines the mutation boundary for store handlers.
 * `PortolanStoreReadiness` reports store availability without making optional extensions startup dependencies.
+* `PortolanStyleReadiness` reports optional MBStyle support without making it a startup dependency.
 
 GeoParquet, COG, and PMTiles are recognized as asset types. The planner marks
 an entry as unsupported when its matching GeoServer extension is absent. In

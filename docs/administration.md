@@ -27,6 +27,46 @@ The **Store readiness** section reports one state for each supported format:
 The module reports `COMPLETE` when all three stores are available. A missing
 store does not prevent GeoServer or the Portolan page from starting.
 
+The page reports MBStyle readiness separately. Install `gs-mbstyle` from the
+same GeoServer release when you need default style import. A missing MBStyle
+extension disables only the style checkbox. You can still plan and provision
+the catalog data.
+
+## Import default styles
+
+Select **Import and assign default styles to layers** before you preview the
+plan. The option is off by default. It stays disabled when GeoServer does not
+provide an MBStyle handler.
+
+The planner identifies collection assets whose `roles` include `style`. When
+several styles exist, one asset must also have the `default` role. The planner
+does not use asset order to choose between candidates.
+
+The first version supports collection-level MBStyle assets. It accepts Mapbox
+Style Specification version 8 JSON. The document must contain at least one
+style layer and must map unambiguously to the target GeoServer layer. Item
+styles, SLD conversion, CSS conversion, and full-map layer groups are outside
+this version's scope.
+
+The importer creates a workspace style and sets it as the layer's default. A
+stable name and source checksum make repeated imports idempotent. The importer
+updates changed styles only when their metadata shows that Portolan created
+them. It does not overwrite a manually managed style with the same name.
+
+The result keeps data provisioning messages separate from these style states:
+
+| State | Meaning |
+|---|---|
+| `IMPORTED` | The module created or updated the style and assigned it. |
+| `REUSED` | The existing managed style has the same source checksum. |
+| `SKIPPED_NO_STYLE` | The collection has no style asset. |
+| `SKIPPED_UNSUPPORTED` | The asset, mapping, or installed extension is unsupported. |
+| `FAILED` | Retrieval, validation, persistence, or assignment failed. |
+
+A style failure does not remove a datastore, resource, or layer that the same
+run created successfully. If assignment fails, the layer keeps its previous
+default style. Logs omit URL credentials and query strings.
+
 ## Preview a plan
 
 Select **Preview selected catalog plan** before provisioning. The preview does not change the GeoServer catalog.
@@ -91,6 +131,7 @@ These values identify the source catalog, collection, and asset.
 
 GeoServer logs each planning and provisioning step under `io.multivers.geoserver.portolan`.
 The messages include the catalog ID, workspace, collection, format, store, action, bounds, and layer result.
+Style import messages include the per-layer state and a concise reason.
 
 Increase the logger level in GeoServer when you need more detail from the surrounding store implementation.
 
@@ -99,3 +140,6 @@ Increase the logger level in GeoServer when you need more detail from the surrou
 The module keeps processing other plan entries when one store cannot publish its layers. The result panel reports the failure message.
 
 Common causes include a missing store extension, an unreachable asset URL, invalid credentials, or a store that exposes no native resource names.
+
+Default style failures can also indicate a missing `gs-mbstyle` extension, an
+unsafe style URL, invalid MBStyle JSON, or an ambiguous `source-layer` mapping.

@@ -53,12 +53,30 @@ Unit tests use local catalog fixtures and do not contact the public registry. Th
 - creating workspaces, stores, and provenance metadata;
 - handling absent plugins and failed layer publication;
 - reporting store readiness and blocking unsafe provisioning;
+- detecting optional MBStyle support without a runtime dependency;
+- selecting default style assets by role and resolving relative URLs;
+- rejecting unsafe, invalid, unsupported, or ambiguous styles;
+- importing, reusing, updating, and rolling back workspace styles;
+- keeping layer provisioning results separate from style results;
 - rendering and submitting the authenticated Wicket page;
 - reading a registry and catalog from local file URIs.
 
 The tests replace store readers when the behavior under test does not require real data. This keeps GeoParquet, COG, and PMTiles unit tests deterministic.
 
 A running GeoServer remains the integration boundary for opening remote assets through their real store implementations.
+
+## Compatibility matrix
+
+| Runtime | Version under test | Style requirement |
+|---|---|---|
+| Vanilla GeoServer | `3.1.0-SNAPSHOT` | Matching `gs-mbstyle` extension |
+| GeoServer Cloud | GeoServer `3.1.0-SNAPSHOT` services | Mapbox styling extension in the Web UI service |
+
+Unit tests exercise the GeoServer `StyleHandler` contract without loading an
+MBStyle implementation directly. This boundary verifies that ordinary data
+provisioning starts and runs without the optional extension. Run a deployment
+smoke test with the matching extension before publishing a release for another
+GeoServer version.
 
 ## Continuous integration
 

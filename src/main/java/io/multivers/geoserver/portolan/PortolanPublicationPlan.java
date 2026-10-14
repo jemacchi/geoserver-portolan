@@ -8,13 +8,24 @@ public final class PortolanPublicationPlan {
     private final String catalogHref;
     private final String workspace;
     private final List<PortolanPublicationEntry> entries;
+    private final boolean importDefaultStyles;
 
     public PortolanPublicationPlan(
             String catalogId, String catalogHref, String workspace, List<PortolanPublicationEntry> entries) {
+        this(catalogId, catalogHref, workspace, entries, false);
+    }
+
+    public PortolanPublicationPlan(
+            String catalogId,
+            String catalogHref,
+            String workspace,
+            List<PortolanPublicationEntry> entries,
+            boolean importDefaultStyles) {
         this.catalogId = catalogId;
         this.catalogHref = catalogHref;
         this.workspace = workspace;
-        this.entries = entries;
+        this.entries = List.copyOf(entries);
+        this.importDefaultStyles = importDefaultStyles;
     }
 
     public String catalogId() {
@@ -31,6 +42,10 @@ public final class PortolanPublicationPlan {
 
     public List<PortolanPublicationEntry> entries() {
         return entries;
+    }
+
+    public boolean importDefaultStyles() {
+        return importDefaultStyles;
     }
 
     public long creatableCount() {

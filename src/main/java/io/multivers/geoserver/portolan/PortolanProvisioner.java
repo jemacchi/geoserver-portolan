@@ -35,8 +35,9 @@ public final class PortolanProvisioner {
     public static final String METADATA_ASSET = "portolan.asset";
 
     private final Catalog catalog;
-    private final BiFunction<PortolanPublicationEntry, StoreInfo, List<String>> layerPublisher;
+    private final BiFunction<PortolanPublicationEntry, StoreInfo, LayerPublication> layerPublisher;
     private final PortolanGeoParquetStore geoParquetStore;
+    private final StyleAssignment styleAssignment;
 
     public PortolanProvisioner(Catalog catalog) {
         this(catalog, PortolanGeoParquetStore.detect());
@@ -46,6 +47,8 @@ public final class PortolanProvisioner {
         this.catalog = catalog;
         this.layerPublisher = this::publishLayers;
         this.geoParquetStore = geoParquetStore;
+        PortolanStyleImporter importer = new PortolanStyleImporter(catalog);
+        this.styleAssignment = importer::importDefaultStyle;
     }
 
     PortolanProvisioner(Catalog catalog, BiFunction<PortolanPublicationEntry, StoreInfo, List<String>> layerPublisher) {
@@ -57,8 +60,20 @@ public final class PortolanProvisioner {
             BiFunction<PortolanPublicationEntry, StoreInfo, List<String>> layerPublisher,
             PortolanGeoParquetStore geoParquetStore) {
         this.catalog = catalog;
-        this.layerPublisher = layerPublisher;
+        this.layerPublisher = (entry, store) -> new LayerPublication(layerPublisher.apply(entry, store), List.of());
         this.geoParquetStore = geoParquetStore;
+        this.styleAssignment = (entry, workspace, layer, targetLayerCount) -> null;
+    }
+
+    PortolanProvisioner(
+            Catalog catalog,
+            BiFunction<PortolanPublicationEntry, StoreInfo, List<String>> layerPublisher,
+            PortolanGeoParquetStore geoParquetStore,
+            StyleAssignment styleAssignment) {
+        this.catalog = catalog;
+        this.layerPublisher = (entry, store) -> new LayerPublication(layerPublisher.apply(entry, store), List.of());
+        this.geoParquetStore = geoParquetStore;
+        this.styleAssignment = styleAssignment;
     }
 
     public PortolanProvisionResult provision(PortolanPublicationPlan plan) {
@@ -67,6 +82,7 @@ public final class PortolanProvisioner {
         int created = 0;
         int skipped = 0;
         List<String> messages = new ArrayList<>();
+        List<PortolanStyleResult> styleResults = new ArrayList<>();
         for (PortolanPublicationEntry entry : plan.entries()) {
             LOGGER.info(() -> "Processing Portolan collection "
                     + entry.collectionId()
@@ -85,17 +101,19 @@ public final class PortolanProvisioner {
                 messages.add(entry.collectionId() + ": no GeoServer store handler for " + entry.format());
                 continue;
             }
-            List<String> layerMessages = layerPublisher.apply(entry, store);
-            if (layerMessages.isEmpty()) {
+            LayerPublication publication = layerPublisher.apply(entry, store);
+            if (publication.messages().isEmpty()) {
                 skipped++;
                 messages.add(entry.collectionId() + ": no layers published from " + store.getName());
                 continue;
             }
-            created += countCreated(layerMessages);
+            created += countCreated(publication.messages());
             messages.add(entry.collectionId() + ": " + store.getType() + " store " + store.getName());
-            messages.addAll(layerMessages);
+            messages.addAll(publication.messages());
+            styleResults.addAll(publication.styleResults());
         }
-        return new PortolanProvisionResult(plan.workspace(), created, skipped, List.copyOf(messages));
+        return new PortolanProvisionResult(
+                plan.workspace(), created, skipped, List.copyOf(messages), List.copyOf(styleResults));
     }
 
     private StoreInfo ensureStore(
@@ -177,7 +195,7 @@ public final class PortolanProvisioner {
         return store;
     }
 
-    private List<String> publishLayers(PortolanPublicationEntry entry, StoreInfo store) {
+    private LayerPublication publishLayers(PortolanPublicationEntry entry, StoreInfo store) {
         try {
             if (store instanceof DataStoreInfo dataStore) {
                 return publishFeatureLayers(entry, dataStore);
@@ -190,23 +208,25 @@ public final class PortolanProvisioner {
                     Level.WARNING,
                     "Could not publish layers for Portolan collection " + entry.collectionId(),
                     exception);
-            return List.of("  layer publication failed: " + exception.getMessage());
+            return new LayerPublication(List.of("  layer publication failed: " + exception.getMessage()), List.of());
         }
-        return List.of();
+        return LayerPublication.empty();
     }
 
-    private List<String> publishFeatureLayers(PortolanPublicationEntry entry, DataStoreInfo store) throws Exception {
+    private LayerPublication publishFeatureLayers(PortolanPublicationEntry entry, DataStoreInfo store)
+            throws Exception {
         DataAccess<? extends FeatureType, ? extends Feature> dataAccess = store.getDataStore(null);
         List<Name> names = nativeFeatureNames(entry, dataAccess.getNames());
         if (names.isEmpty()) {
             LOGGER.info(() -> "Store " + store.getName() + " has no feature type names");
-            return List.of("  no feature types found");
+            return new LayerPublication(List.of("  no feature types found"), List.of());
         }
 
         CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.setWorkspace(store.getWorkspace());
         builder.setStore(store);
         List<String> messages = new ArrayList<>();
+        List<PortolanStyleResult> styleResults = new ArrayList<>();
         for (Name nativeName : names) {
             String layerName = layerName(entry, nativeName.getLocalPart(), names.size());
             FeatureTypeInfo resource = catalog.getFeatureTypeByDataStore(store, layerName);
@@ -221,9 +241,11 @@ public final class PortolanProvisioner {
             } else if (ensureBounds(entry, builder, resource)) {
                 catalog.save(resource);
             }
-            messages.add(publishLayer(resource, layerName));
+            LayerPublication publication = publishLayer(entry, resource, layerName, names.size());
+            messages.addAll(publication.messages());
+            styleResults.addAll(publication.styleResults());
         }
-        return messages;
+        return new LayerPublication(List.copyOf(messages), List.copyOf(styleResults));
     }
 
     List<Name> nativeFeatureNames(PortolanPublicationEntry entry, List<Name> names) {
@@ -234,19 +256,20 @@ public final class PortolanProvisioner {
         return matches.isEmpty() ? names : matches;
     }
 
-    private List<String> publishCoverageLayers(PortolanPublicationEntry entry, CoverageStoreInfo store)
+    private LayerPublication publishCoverageLayers(PortolanPublicationEntry entry, CoverageStoreInfo store)
             throws Exception {
         GridCoverageReader reader = store.getGridCoverageReader(null, null);
         String[] names = reader.getGridCoverageNames();
         if (names.length == 0) {
             LOGGER.info(() -> "Store " + store.getName() + " has no coverage names");
-            return List.of("  no coverages found");
+            return new LayerPublication(List.of("  no coverages found"), List.of());
         }
 
         CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.setWorkspace(store.getWorkspace());
         builder.setStore(store);
         List<String> messages = new ArrayList<>();
+        List<PortolanStyleResult> styleResults = new ArrayList<>();
         for (String nativeName : names) {
             String layerName = layerName(entry, nativeName, names.length);
             CoverageInfo resource = catalog.getCoverageByCoverageStore(store, layerName);
@@ -261,9 +284,11 @@ public final class PortolanProvisioner {
             } else if (ensureBounds(entry, builder, resource)) {
                 catalog.save(resource);
             }
-            messages.add(publishLayer(resource, layerName));
+            LayerPublication publication = publishLayer(entry, resource, layerName, names.length);
+            messages.addAll(publication.messages());
+            styleResults.addAll(publication.styleResults());
         }
-        return messages;
+        return new LayerPublication(List.copyOf(messages), List.copyOf(styleResults));
     }
 
     private boolean ensureBounds(PortolanPublicationEntry entry, CatalogBuilder builder, ResourceInfo resource) {
@@ -316,18 +341,35 @@ public final class PortolanProvisioner {
         }
     }
 
-    private String publishLayer(ResourceInfo resource, String layerName) throws Exception {
+    LayerPublication publishLayer(PortolanPublicationEntry entry, ResourceInfo resource, String layerName)
+            throws Exception {
+        return publishLayer(entry, resource, layerName, 1);
+    }
+
+    private LayerPublication publishLayer(
+            PortolanPublicationEntry entry, ResourceInfo resource, String layerName, int targetLayerCount)
+            throws Exception {
         LayerInfo existing = catalog.getLayerByName(resource.prefixedName());
+        String message;
+        LayerInfo layer;
         if (existing != null) {
             LOGGER.info(() -> "Layer already exists: " + resource.prefixedName());
-            return "  layer exists: " + resource.prefixedName();
+            message = "  layer exists: " + resource.prefixedName();
+            layer = existing;
+        } else {
+            CatalogBuilder builder = new CatalogBuilder(catalog);
+            layer = builder.buildLayer(resource);
+            layer.setName(layerName);
+            catalog.add(layer);
+            LOGGER.info(() -> "Created layer " + resource.prefixedName());
+            message = "  created layer: " + resource.prefixedName();
         }
-        CatalogBuilder builder = new CatalogBuilder(catalog);
-        LayerInfo layer = builder.buildLayer(resource);
-        layer.setName(layerName);
-        catalog.add(layer);
-        LOGGER.info(() -> "Created layer " + resource.prefixedName());
-        return "  created layer: " + resource.prefixedName();
+        if (entry.defaultStyle().action() == PortolanStylePlanAction.DISABLED) {
+            return new LayerPublication(List.of(message), List.of());
+        }
+        PortolanStyleResult styleResult =
+                styleAssignment.apply(entry, resource.getStore().getWorkspace(), layer, targetLayerCount);
+        return new LayerPublication(List.of(message), styleResult == null ? List.of() : List.of(styleResult));
     }
 
     String layerName(PortolanPublicationEntry entry, String nativeName, int nativeCount) {
@@ -394,5 +436,17 @@ public final class PortolanProvisioner {
     private String namespace(WorkspaceInfo workspace) {
         NamespaceInfo namespace = catalog.getNamespaceByPrefix(workspace.getName());
         return namespace == null ? workspace.getName() : namespace.getURI();
+    }
+
+    record LayerPublication(List<String> messages, List<PortolanStyleResult> styleResults) {
+        private static LayerPublication empty() {
+            return new LayerPublication(List.of(), List.of());
+        }
+    }
+
+    @FunctionalInterface
+    interface StyleAssignment {
+        PortolanStyleResult apply(
+                PortolanPublicationEntry entry, WorkspaceInfo workspace, LayerInfo layer, int targetLayerCount);
     }
 }

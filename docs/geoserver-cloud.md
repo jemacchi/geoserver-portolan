@@ -78,6 +78,11 @@ GeoParquet, COG, and PMTiles remain separate GeoServer extensions. Enable each
 store extension in every service that reads its catalog objects. The Portolan
 page reports which store extension is missing.
 
+MBStyle is also optional. Add the GeoServer Cloud Mapbox styling extension to
+the Web UI service when administrators need default style import. Portolan
+detects the registered `mbstyle` handler at runtime, so the Cloud ZIP remains
+usable when that extension is absent.
+
 Restart the affected services after you change the mounted JARs:
 
 ```bash

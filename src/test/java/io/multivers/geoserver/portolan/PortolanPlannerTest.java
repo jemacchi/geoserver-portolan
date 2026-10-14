@@ -2,7 +2,9 @@ package io.multivers.geoserver.portolan;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -108,6 +110,104 @@ public class PortolanPlannerTest {
         assertNull(entry.bbox());
     }
 
+    @Test
+    public void leavesDefaultStyleImportDisabledUnlessRequested() throws Exception {
+        Path catalogPath = writeCatalog(
+                "demo",
+                List.of(
+                        collectionWithStyles(
+                                "roads",
+                                "{\"style\":{\"href\":\"styles/roads.json\",\"type\":\"application/vnd.mapbox.style+json\",\"roles\":[\"style\",\"default\"]}}")));
+        PortolanPlanner planner = new PortolanPlanner(new CatalogImpl(), format -> null);
+
+        PortolanPublicationPlan plan = planner.plan(catalogPath, "target");
+
+        assertFalse(plan.importDefaultStyles());
+        assertEquals(
+                PortolanStylePlanAction.DISABLED,
+                plan.entries().get(0).defaultStyle().action());
+    }
+
+    @Test
+    public void selectsOneDefaultStyleAndResolvesItsRelativeHref() throws Exception {
+        Path catalogPath = writeCatalog(
+                "demo",
+                List.of(
+                        collectionWithStyles(
+                                "roads",
+                                "{\"alternate\":{\"href\":\"styles/alternate.json\",\"type\":\"application/vnd.mapbox.style+json\",\"roles\":[\"style\"]},"
+                                        + "\"preferred\":{\"href\":\"styles/default.json\",\"type\":\"application/vnd.mapbox.style+json\",\"roles\":[\"style\",\"default\"]}}")));
+        PortolanPlanner planner = new PortolanPlanner(new CatalogImpl(), format -> null);
+
+        PortolanPublicationPlan plan = planner.plan(catalogPath, "target", true);
+        PortolanDefaultStyle style = plan.entries().get(0).defaultStyle();
+
+        assertTrue(plan.importDefaultStyles());
+        assertEquals(PortolanStylePlanAction.IMPORT, style.action());
+        assertEquals("preferred", style.assetKey());
+        assertEquals("application/vnd.mapbox.style+json", style.mediaType());
+        assertEquals(catalogPath.getParent().resolve("c0/styles/default.json").toUri(), style.href());
+        assertEquals("demo__roads__roads__preferred", style.styleName());
+    }
+
+    @Test
+    public void acceptsOneStyleWithoutDefaultRole() throws Exception {
+        Path catalogPath = writeCatalog(
+                "demo",
+                List.of(
+                        collectionWithStyles(
+                                "roads",
+                                "{\"only\":{\"href\":\"style.json\",\"type\":\"application/vnd.geoserver.mbstyle+json\",\"roles\":[\"style\"]}}")));
+
+        PortolanDefaultStyle style = new PortolanPlanner(new CatalogImpl(), format -> null)
+                .plan(catalogPath, "target", true)
+                .entries()
+                .get(0)
+                .defaultStyle();
+
+        assertEquals(PortolanStylePlanAction.IMPORT, style.action());
+        assertEquals("only", style.assetKey());
+    }
+
+    @Test
+    public void skipsConflictingDefaultsAndUnsupportedStyleFormats() throws Exception {
+        Path catalogPath = writeCatalog(
+                "demo",
+                List.of(
+                        collectionWithStyles(
+                                "conflict",
+                                "{\"one\":{\"href\":\"one.json\",\"type\":\"application/vnd.mapbox.style+json\",\"roles\":[\"style\",\"default\"]},"
+                                        + "\"two\":{\"href\":\"two.json\",\"type\":\"application/vnd.mapbox.style+json\",\"roles\":[\"style\",\"default\"]}}"),
+                        collectionWithStyles(
+                                "sld",
+                                "{\"style\":{\"href\":\"style.sld\",\"type\":\"application/vnd.ogc.sld+xml\",\"roles\":[\"style\",\"default\"]}}")));
+
+        PortolanPublicationPlan plan =
+                new PortolanPlanner(new CatalogImpl(), format -> null).plan(catalogPath, "target", true);
+
+        assertEquals(
+                PortolanStylePlanAction.SKIPPED_UNSUPPORTED,
+                plan.entries().get(0).defaultStyle().action());
+        assertTrue(plan.entries().get(0).defaultStyle().reason().contains("multiple default"));
+        assertEquals(
+                PortolanStylePlanAction.SKIPPED_UNSUPPORTED,
+                plan.entries().get(1).defaultStyle().action());
+        assertTrue(plan.entries().get(1).defaultStyle().reason().contains("MBStyle"));
+    }
+
+    @Test
+    public void reportsCollectionsWithoutStyles() throws Exception {
+        Path catalogPath = writeCatalog("demo", List.of(collection("roads", "roads.parquet", null, "[-1,-1,1,1]")));
+
+        PortolanDefaultStyle style = new PortolanPlanner(new CatalogImpl(), format -> null)
+                .plan(catalogPath, "target", true)
+                .entries()
+                .get(0)
+                .defaultStyle();
+
+        assertEquals(PortolanStylePlanAction.SKIPPED_NO_STYLE, style.action());
+    }
+
     private Path writeCatalog(String id, List<String> collections) throws Exception {
         Path root = temporaryFolder.newFolder().toPath();
         String links = java.util.stream.IntStream.range(0, collections.size())
@@ -145,6 +245,14 @@ public class PortolanPlannerTest {
                 + "\"extent\":{\"spatial\":{\"bbox\":[[\"NaN\",0,1,2]]}},\"assets\":{"
                 + "\"preview\":{\"href\":\"preview.tif\",\"roles\":[\"overview\"]},"
                 + "\"data\":{\"href\":\"data.parquet\",\"roles\":[\"data\"]}}}";
+    }
+
+    private static String collectionWithStyles(String id, String styles) {
+        return "{\"type\":\"Collection\",\"id\":\""
+                + id
+                + "\",\"links\":[],\"assets\":{\"data\":{\"href\":\"data.parquet\",\"roles\":[\"data\"]},"
+                + styles.substring(1)
+                + "}";
     }
 
     private static void assertEntry(
