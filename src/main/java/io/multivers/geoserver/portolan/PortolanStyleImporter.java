@@ -229,6 +229,12 @@ final class PortolanStyleImporter {
         targetNames.add(entry.collectionId());
         targetNames.add(entry.layerName());
         targetNames.add(layer.getName());
+        if (layer.getResource() instanceof FeatureTypeInfo featureTypeInfo) {
+            String nativeName = featureTypeInfo.getNativeName();
+            if (nativeName != null && !nativeName.isBlank()) {
+                targetNames.add(nativeName);
+            }
+        }
         if (layers.size() == 1 && sourceLayers.size() == 1) {
             return targetNames.contains(sourceLayers.iterator().next())
                     ? null

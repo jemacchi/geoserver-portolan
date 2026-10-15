@@ -247,6 +247,55 @@ public class PortolanStyleImporterTest {
     }
 
     @Test
+    public void matchesMbStyleSourceLayerAgainstNativeFeatureName() {
+        CatalogFixture fixture = catalogFixture(null);
+        String publishedName = "adressen__adressen-berlin__visual";
+        String nativeName = "adressen_berlin_adressen_berlin";
+        LayerInfo layer = mock(LayerInfo.class);
+        FeatureTypeInfo resource = mock(FeatureTypeInfo.class);
+        when(layer.getName()).thenReturn(publishedName);
+        when(layer.getResource()).thenReturn(resource);
+        when(resource.getNativeName()).thenReturn(nativeName);
+        String content =
+                """
+                {"version":8,
+                 "sources":{"data":{"type":"vector","url":"../adressen_berlin_adressen_berlin.pmtiles"}},
+                 "layers":[{
+                   "id":"adressen_berlin_adressen_berlin-circle",
+                   "type":"circle",
+                   "source":"data",
+                   "source-layer":"adressen_berlin_adressen_berlin"
+                 }]}
+                """;
+        PortolanDefaultStyle style = new PortolanDefaultStyle(
+                PortolanStylePlanAction.IMPORT,
+                "style",
+                URI.create("https://data.example.test/adressen/adressen-berlin/styles/default.json"),
+                "application/vnd.mapbox.style+json",
+                List.of("style", "default"),
+                "berlin-geoportal__adressen__adressen-berlin__visual__style",
+                null);
+        PortolanPublicationEntry entry = new PortolanPublicationEntry(
+                "adressen/adressen-berlin",
+                publishedName,
+                publishedName,
+                PortolanResourceFormat.PMTILES,
+                URI.create(
+                        "https://data.example.test/adressen/adressen-berlin/adressen_berlin_adressen_berlin.pmtiles"),
+                null,
+                PortolanPlanAction.CREATE,
+                null,
+                style);
+
+        PortolanStyleResult result = new PortolanStyleImporter(
+                        fixture.catalog, new PortolanStyleReadiness(() -> List.of(fixture.handler)), uri -> content)
+                .importDefaultStyle(entry, fixture.workspace, layer);
+
+        assertEquals(PortolanStyleResultStatus.IMPORTED, result.status());
+        verify(layer).setDefaultStyle(fixture.style);
+    }
+
+    @Test
     public void doesNotOverwriteAStyleThatPortolanDoesNotOwn() {
         StyleInfo existing = mock(StyleInfo.class);
         when(existing.getMetadata()).thenReturn(new MetadataMap());
